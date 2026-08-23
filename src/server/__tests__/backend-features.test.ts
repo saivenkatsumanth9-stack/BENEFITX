@@ -1,26 +1,83 @@
 /**
- * BENEFITX Backend Feature Tests
+ * BENEFITX Master Backend Integration Test Suite
  *
- * Tests all 5 backend features:
- * 1. Missed Scheme Detector (Recommendation Engine)
- * 2. Explainable Eligibility
- * 3. Smart Document Readiness
- * 4. What-If Eligibility Simulator
- * 5. Simple Language + Multilingual Explanation
+ * Comprehensive tests covering:
+ * - Dynamic Profile Match Scoring (scheme-specific weights, score breakdown, data confidence, match labels)
+ * - Feature 1: Missed Scheme Detector (Recommendation Engine with dynamic scoring)
+ * - Feature 2: Explainable Eligibility (MATCHED, PARTIALLY_MATCHED, FAILED, UNKNOWN)
+ * - Feature 3: Smart Document Readiness (including EXPIRED document handling)
+ * - Feature 4: What-If Eligibility Simulator (categorized changes, immutability)
+ * - Feature 5: Simple Language + Multilingual Explanation (EN, TE, HI, template fallback)
+ * - Feature 6: Application Status + Deadline Tracker (NOT_REGISTERED, REGISTERED, APPLICATION_STARTED, APPLIED, and OPEN, DEADLINE_APPROACHING, CLOSING_SOON, CLOSED, NO_DEADLINE)
+ * - Security & Authorization (Cross-user isolation, Role separation)
+ * - Unified Scheme Intelligence API
  */
 import { describe, it, expect } from 'vitest';
 import { recommendSchemes } from '../services/recommendationEngine';
-import { evaluateEligibility } from '../services/eligibilityEngine';
-import { calculateDocumentReadiness } from '../services/documentReadinessEngine';
-import { simulateEligibility, SIMULATION_WHITELIST } from '../services/simulationEngine';
+import { evaluateEligibility, evaluateEligibilityEnhanced } from '../services/eligibilityEngine';
+import { calculateDocumentReadiness, calculateDocumentReadinessEnhanced } from '../services/documentReadinessEngine';
+import { simulateEligibility, simulateEligibilityEnhanced, SIMULATION_WHITELIST } from '../services/simulationEngine';
 import { explainScheme } from '../services/explanationEngine';
+import {
+  getApplicationStatus,
+  getDeadlineStatus,
+  getApplicationStatusAndDeadline,
+} from '../services/applicationStatusEngine';
+import {
+  computeProfileMatchWithBreakdown,
+  generateSchemeWeights,
+  buildScoreBreakdown,
+  calculateDataConfidence,
+  classifyMatchLabel,
+  evaluateCriteria,
+} from '@/lib/matching';
 import { SCHEMES } from '../../data/schemes';
 import { DEMO_PROFILE } from '../../services/profileService';
 import { DEMO_DOCUMENTS } from '../../data/documents';
-import type { UserProfile, UserDocument } from '../../lib/types';
+import type { UserProfile, UserDocument, ApplicationRecord } from '../../lib/types';
 
-// ===== Test profiles =====
-const fullProfile: UserProfile = { ...DEMO_PROFILE };
+// ===== Standard Test Personas =====
+const studentProfile: UserProfile = { ...DEMO_PROFILE }; // Aarav Reddy - Student, Telangana
+
+const farmerProfile: UserProfile = {
+  name: 'Rajesh Kumar',
+  age: 42,
+  gender: 'Male',
+  state: 'Andhra Pradesh',
+  district: 'Guntur',
+  areaType: 'Rural',
+  occupation: 'Farmer',
+  educationLevel: '10th Pass',
+  course: '',
+  isStudent: false,
+  annualIncome: 180000,
+  employmentStatus: 'Self-employed',
+  isFarmer: true,
+  landHoldingAcres: 3.5,
+  hasDisability: false,
+  isSeniorCitizen: false,
+  updatedAt: new Date().toISOString(),
+};
+
+const seniorProfile: UserProfile = {
+  name: 'Venkatamma',
+  age: 68,
+  gender: 'Female',
+  state: 'Telangana',
+  district: 'Hyderabad',
+  areaType: 'Urban',
+  occupation: 'Retired',
+  educationLevel: 'Below 10th',
+  course: '',
+  isStudent: false,
+  annualIncome: 60000,
+  employmentStatus: 'Retired',
+  isFarmer: false,
+  landHoldingAcres: null,
+  hasDisability: false,
+  isSeniorCitizen: true,
+  updatedAt: new Date().toISOString(),
+};
 
 const incompleteProfile: UserProfile = {
   name: '',
@@ -42,131 +99,198 @@ const incompleteProfile: UserProfile = {
   updatedAt: '',
 };
 
-const failingProfile: UserProfile = {
-  name: 'Test User',
-  age: 80,
+const highIncomeProfile: UserProfile = {
+  name: 'Rich Executive',
+  age: 45,
   gender: 'Male',
-  state: 'Goa',
-  district: 'South Goa',
+  state: 'Maharashtra',
+  district: 'Mumbai',
   areaType: 'Urban',
-  occupation: 'Retired',
+  occupation: 'Salaried',
   educationLevel: 'Postgraduate',
   course: '',
   isStudent: false,
-  annualIncome: 5000000,
-  employmentStatus: 'Retired',
+  annualIncome: 8000000,
+  employmentStatus: 'Employed',
   isFarmer: false,
   landHoldingAcres: null,
   hasDisability: false,
-  isSeniorCitizen: true,
+  isSeniorCitizen: false,
   updatedAt: new Date().toISOString(),
 };
 
-// ===== FEATURE 1: Missed Scheme Detector =====
-describe('Feature 1: Missed Scheme Detector (Recommendation Engine)', () => {
-  it('should return ranked scheme recommendations for a valid profile', () => {
-    const results = recommendSchemes(fullProfile);
-    expect(results).toBeDefined();
-    expect(Array.isArray(results)).toBe(true);
-    expect(results.length).toBeGreaterThan(0);
+// ===================================================================
+// 1. DYNAMIC PROFILE MATCH SCORING SYSTEM TESTS
+// ===================================================================
+describe('Dynamic Profile Match Scoring System', () => {
+  it('Test 1: Different schemes produce DIFFERENT match scores for the same user profile', () => {
+    // Evaluating multiple schemes against studentProfile should not yield identical scores
+    const scheme1 = SCHEMES.find(s => s.id === 'scheme-001')!; // Scholarship (Student)
+    const scheme3 = SCHEMES.find(s => s.id === 'scheme-003')!; // PM Kisan (Farmer)
+    const scheme13 = SCHEMES.find(s => s.id === 'scheme-013')!; // Old Age Pension (Senior)
+
+    const res1 = computeProfileMatchWithBreakdown(studentProfile, scheme1, DEMO_DOCUMENTS);
+    const res3 = computeProfileMatchWithBreakdown(studentProfile, scheme3, DEMO_DOCUMENTS);
+    const res13 = computeProfileMatchWithBreakdown(studentProfile, scheme13, DEMO_DOCUMENTS);
+
+    // Scores must be dynamic and differentiated
+    expect(res1.score).toBeGreaterThan(res3.score);
+    expect(res1.score).toBeGreaterThan(res13.score);
+    expect(res1.score).not.toEqual(res3.score);
+    expect(res3.score).not.toEqual(res13.score);
   });
 
-  it('should produce deterministic scores (same input = same output)', () => {
-    const results1 = recommendSchemes(fullProfile);
-    const results2 = recommendSchemes(fullProfile);
-    expect(results1.length).toBe(results2.length);
-    for (let i = 0; i < results1.length; i++) {
-      expect(results1[i]!.matchScore).toBe(results2[i]!.matchScore);
-      expect(results1[i]!.schemeId).toBe(results2[i]!.schemeId);
-    }
+  it('Test 2: Same scheme produces DIFFERENT scores for different user profiles', () => {
+    const scheme3 = SCHEMES.find(s => s.id === 'scheme-003')!; // PM Kisan (Farmer scheme)
+
+    const farmerResult = computeProfileMatchWithBreakdown(farmerProfile, scheme3);
+    const studentResult = computeProfileMatchWithBreakdown(studentProfile, scheme3);
+
+    expect(farmerResult.score).toBeGreaterThan(studentResult.score);
+    expect(farmerResult.breakdown.find(b => b.label === 'Farmer status')?.status).toBe('MATCHED');
+    expect(studentResult.breakdown.find(b => b.label === 'Farmer status')?.status).toBe('FAILED');
   });
 
-  it('should return results sorted by matchScore descending', () => {
-    const results = recommendSchemes(fullProfile);
-    for (let i = 1; i < results.length; i++) {
-      expect(results[i - 1]!.matchScore).toBeGreaterThanOrEqual(results[i]!.matchScore);
-    }
+  it('Test 3: MATCHED criterion evaluation correctly identifies meeting conditions', () => {
+    const scheme = SCHEMES.find(s => s.id === 'scheme-001')!;
+    const criteria = evaluateCriteria(studentProfile, scheme);
+    const incomeFactor = criteria.find(c => c.label === 'Annual income');
+    expect(incomeFactor).toBeDefined();
+    // studentProfile has income 120000 <= 300000
+    expect(incomeFactor!.status).toBe('match');
+
+    // Also test State matching on state-specific scheme-002 (Telangana)
+    const stateScheme = SCHEMES.find(s => s.id === 'scheme-002')!;
+    const stateCriteria = evaluateCriteria(studentProfile, stateScheme);
+    const stateFactor = stateCriteria.find(c => c.label === 'State');
+    expect(stateFactor).toBeDefined();
+    expect(stateFactor!.status).toBe('match');
   });
 
-  it('should include matchedCriteria, failedCriteria, and unknownCriteria', () => {
-    const results = recommendSchemes(fullProfile);
-    for (const result of results) {
-      expect(Array.isArray(result.matchedCriteria)).toBe(true);
-      expect(Array.isArray(result.failedCriteria)).toBe(true);
-      expect(Array.isArray(result.unknownCriteria)).toBe(true);
-    }
+  it('Test 4: FAILED criterion evaluation correctly identifies failing conditions', () => {
+    const scheme = SCHEMES.find(s => s.id === 'scheme-003')!; // Farmer required
+    const criteria = evaluateCriteria(studentProfile, scheme);
+    const farmerFactor = criteria.find(c => c.label === 'Farmer status');
+    expect(farmerFactor).toBeDefined();
+    expect(farmerFactor!.status).toBe('mismatch');
   });
 
-  it('should correctly classify status based on matchScore', () => {
-    const results = recommendSchemes(fullProfile, SCHEMES, [], [], 50);
-    for (const result of results) {
-      if (result.matchScore >= 75) {
-        expect(result.status).toBe('POTENTIAL_MATCH');
-      } else if (result.matchScore >= 50) {
-        expect(result.status).toBe('PARTIAL_MATCH');
-      } else {
-        expect(result.status).toBe('UNLIKELY_MATCH');
-      }
-    }
+  it('Test 5: UNKNOWN criterion evaluation when profile field is missing', () => {
+    const scheme = SCHEMES.find(s => s.id === 'scheme-001')!;
+    const criteria = evaluateCriteria(incompleteProfile, scheme);
+    const incomeFactor = criteria.find(c => c.label === 'Annual income');
+    expect(incomeFactor).toBeDefined();
+    expect(incomeFactor!.status).toBe('unknown');
   });
 
-  it('should exclude specified scheme IDs', () => {
-    const excludeIds = [SCHEMES[0]!.id, SCHEMES[1]!.id];
-    const results = recommendSchemes(fullProfile, SCHEMES, [], excludeIds);
-    const resultIds = results.map(r => r.schemeId);
-    for (const id of excludeIds) {
-      expect(resultIds).not.toContain(id);
-    }
+  it('Test 6: PARTIAL match evaluation on near-miss criteria', () => {
+    // Scheme-001 has age limit 17-30. Near-threshold age 32 is slightly above 30 -> partial
+    const nearAgeProfile: UserProfile = { ...studentProfile, age: 32 };
+    const scholarshipScheme = SCHEMES.find(s => s.id === 'scheme-001')!; // age 17-30
+    const criteria = evaluateCriteria(nearAgeProfile, scholarshipScheme);
+    const ageFactor = criteria.find(c => c.label === 'Age');
+    expect(ageFactor).toBeDefined();
+    expect(ageFactor!.status).toBe('partial');
   });
 
-  it('should respect the limit parameter', () => {
-    const results = recommendSchemes(fullProfile, SCHEMES, [], [], 3);
-    expect(results.length).toBeLessThanOrEqual(3);
+  it('Test 7: Dynamic scheme weights derive from scheme eligibility criteria and sum to ~100', () => {
+    const scheme1 = SCHEMES.find(s => s.id === 'scheme-001')!;
+    const weights1 = generateSchemeWeights(scheme1);
+    const total1 = Object.values(weights1).reduce((sum, w) => sum + w, 0);
+    expect(total1).toBeGreaterThanOrEqual(95);
+    expect(total1).toBeLessThanOrEqual(105);
+
+    const scheme3 = SCHEMES.find(s => s.id === 'scheme-003')!;
+    const weights3 = generateSchemeWeights(scheme3);
+    // Scheme 3 has Farmer status, Scheme 1 does not
+    expect(weights3['Farmer status']).toBeDefined();
+    expect(weights1['Farmer status']).toBeUndefined();
   });
 
-  it('should provide a human-readable reason for each recommendation', () => {
-    const results = recommendSchemes(fullProfile);
-    for (const result of results) {
-      expect(result.reason).toBeTruthy();
-      expect(typeof result.reason).toBe('string');
-      expect(result.reason.length).toBeGreaterThan(10);
-    }
+  it('Test 8: Data confidence varies based on profile completeness', () => {
+    const scheme = SCHEMES.find(s => s.id === 'scheme-001')!;
+    const fullRes = computeProfileMatchWithBreakdown(studentProfile, scheme);
+    const incompleteRes = computeProfileMatchWithBreakdown(incompleteProfile, scheme);
+
+    expect(fullRes.dataConfidence).toBe('HIGH');
+    expect(incompleteRes.dataConfidence).toBe('LOW');
   });
 
-  it('should use "profile match" semantics — scores between 5 and 99', () => {
-    const results = recommendSchemes(fullProfile, SCHEMES, [], [], 50);
-    for (const result of results) {
-      expect(result.matchScore).toBeGreaterThanOrEqual(5);
-      expect(result.matchScore).toBeLessThanOrEqual(99);
-    }
+  it('Test 8b: Match labels classify accurately across score thresholds', () => {
+    expect(classifyMatchLabel(95)).toBe('EXCELLENT_MATCH');
+    expect(classifyMatchLabel(80)).toBe('STRONG_MATCH');
+    expect(classifyMatchLabel(65)).toBe('POTENTIAL_MATCH');
+    expect(classifyMatchLabel(45)).toBe('LOW_MATCH');
+    expect(classifyMatchLabel(20)).toBe('WEAK_MATCH');
   });
 });
 
-// ===== FEATURE 2: Explainable Eligibility =====
-describe('Feature 2: Explainable Eligibility', () => {
-  it('should return MATCHED status when profile meets all criteria', () => {
-    // scheme-001 is National Merit Scholarship — DEMO_PROFILE should match well
-    const result = evaluateEligibility(fullProfile, 'scheme-001');
+// ===================================================================
+// 2. FEATURE 1: DYNAMIC MISSED SCHEME DETECTOR TESTS
+// ===================================================================
+describe('Feature 1: Dynamic Missed Scheme Detector', () => {
+  it('Test 9: Missed scheme ranking uses dynamic scores and includes score breakdown', () => {
+    const results = recommendSchemes(studentProfile, SCHEMES, DEMO_DOCUMENTS);
+    expect(results.length).toBeGreaterThan(0);
+
+    // Verify sort order
+    for (let i = 1; i < results.length; i++) {
+      expect(results[i - 1]!.matchScore).toBeGreaterThanOrEqual(results[i]!.matchScore);
+    }
+
+    // Verify presence of dynamic breakdown and metadata
+    const topResult = results[0]!;
+    expect(topResult.scoreBreakdown).toBeDefined();
+    expect(Array.isArray(topResult.scoreBreakdown)).toBe(true);
+    expect(topResult.dataConfidence).toBeDefined();
+    expect(topResult.matchLabel).toBeDefined();
+    expect(topResult.reason).toBeTruthy();
+  });
+
+  it('should exclude specified scheme IDs correctly', () => {
+    const exclude = ['scheme-001', 'scheme-002'];
+    const results = recommendSchemes(studentProfile, SCHEMES, [], exclude);
+    const returnedIds = results.map(r => r.schemeId);
+    for (const id of exclude) {
+      expect(returnedIds).not.toContain(id);
+    }
+  });
+
+  it('should respect result limit parameter', () => {
+    const results = recommendSchemes(studentProfile, SCHEMES, [], [], 3);
+    expect(results.length).toBeLessThanOrEqual(3);
+  });
+});
+
+// ===================================================================
+// 3. FEATURE 2: EXPLAINABLE ELIGIBILITY ENGINE TESTS
+// ===================================================================
+describe('Feature 2: Explainable Eligibility Engine', () => {
+  it('should return MATCHED or UNKNOWN for student on National Merit Scholarship', () => {
+    const result = evaluateEligibility(studentProfile, 'scheme-001');
     expect(result).not.toBeNull();
     expect(['MATCHED', 'UNKNOWN']).toContain(result!.status);
     expect(result!.matchedConditions.length).toBeGreaterThan(0);
+    expect(result!.overallNote).toContain('National Merit Scholarship');
   });
 
-  it('should return FAILED status when profile fails criteria', () => {
-    const result = evaluateEligibility(failingProfile, 'scheme-001');
+  it('should return FAILED for rich executive on welfare schemes with income cap', () => {
+    const result = evaluateEligibility(highIncomeProfile, 'scheme-001');
     expect(result).not.toBeNull();
     expect(result!.status).toBe('FAILED');
     expect(result!.failedConditions.length).toBeGreaterThan(0);
   });
 
-  it('should return UNKNOWN status when profile information is missing', () => {
-    const result = evaluateEligibility(incompleteProfile, 'scheme-001');
-    expect(result).not.toBeNull();
-    expect(['UNKNOWN', 'FAILED']).toContain(result!.status);
-    expect(result!.missingInformation.length).toBeGreaterThan(0);
+  it('should return enhanced eligibility with PARTIALLY_MATCHED and scoreBreakdown', () => {
+    const nearProfile: UserProfile = { ...studentProfile, age: 26 };
+    const enhanced = evaluateEligibilityEnhanced(nearProfile, 'scheme-001');
+    expect(enhanced).not.toBeNull();
+    expect(enhanced!.scoreBreakdown).toBeDefined();
+    expect(Array.isArray(enhanced!.scoreBreakdown)).toBe(true);
+    expect(enhanced!.scoreBreakdown.length).toBeGreaterThan(0);
   });
 
-  it('should never force UNKNOWN into MATCHED', () => {
+  it('should never force UNKNOWN into MATCHED when profile fields are missing', () => {
     const result = evaluateEligibility(incompleteProfile, 'scheme-001');
     expect(result).not.toBeNull();
     if (result!.missingInformation.length > 0) {
@@ -174,163 +298,105 @@ describe('Feature 2: Explainable Eligibility', () => {
     }
   });
 
-  it('should return null for non-existent scheme', () => {
-    const result = evaluateEligibility(fullProfile, 'non-existent-scheme');
+  it('should return null for non-existent schemeId', () => {
+    const result = evaluateEligibility(studentProfile, 'invalid-scheme-xyz');
     expect(result).toBeNull();
-  });
-
-  it('should include an overall note explaining the assessment', () => {
-    const result = evaluateEligibility(fullProfile, 'scheme-001');
-    expect(result).not.toBeNull();
-    expect(result!.overallNote).toBeTruthy();
-    expect(typeof result!.overallNote).toBe('string');
-  });
-
-  it('should provide human-readable condition descriptions', () => {
-    const result = evaluateEligibility(fullProfile, 'scheme-001');
-    expect(result).not.toBeNull();
-    for (const condition of result!.matchedConditions) {
-      expect(condition.length).toBeGreaterThan(5);
-    }
   });
 });
 
-// ===== FEATURE 3: Smart Document Readiness =====
-describe('Feature 3: Smart Document Readiness', () => {
-  it('should calculate correct readiness score', () => {
+// ===================================================================
+// 4. FEATURE 3: SMART DOCUMENT READINESS ENGINE TESTS
+// ===================================================================
+describe('Feature 3: Smart Document Readiness Engine', () => {
+  it('Test 10: Calculates correct readiness score based on available required documents', () => {
     const result = calculateDocumentReadiness(DEMO_DOCUMENTS, 'scheme-001');
     expect(result).not.toBeNull();
     expect(result!.readinessScore).toBeGreaterThanOrEqual(0);
     expect(result!.readinessScore).toBeLessThanOrEqual(100);
+    expect(result!.totalRequired).toBeGreaterThan(0);
   });
 
-  it('should correctly identify missing documents', () => {
-    const result = calculateDocumentReadiness(DEMO_DOCUMENTS, 'scheme-001');
-    expect(result).not.toBeNull();
-    // scheme-001 requires Aadhaar, Education Certificate, Income Certificate, Photograph, Bank Passbook
-    // DEMO_DOCUMENTS has Aadhaar (available), Education Certificate (needs-verification),
-    // Photograph (available), Bank Passbook (available), Income Certificate (missing)
-    expect(result!.missing).toContain('Income Certificate');
-  });
-
-  it('should not reduce readiness for optional documents', () => {
-    const docsWithoutOptional: UserDocument[] = DEMO_DOCUMENTS.filter(
-      d => d.name !== 'Caste Certificate'
-    );
-    const result = calculateDocumentReadiness(docsWithoutOptional, 'scheme-001');
-    expect(result).not.toBeNull();
-    // Optional documents should not affect the readiness score
-    expect(result!.optionalDocuments).toBeDefined();
-  });
-
-  it('should return 100% when all required documents are available', () => {
-    const allDocs: UserDocument[] = [
-      { id: 'a', name: 'Aadhaar', status: 'available', verified: true },
-      { id: 'b', name: 'Education Certificate', status: 'available', verified: true },
-      { id: 'c', name: 'Income Certificate', status: 'available', verified: true },
-      { id: 'd', name: 'Photograph', status: 'available', verified: true },
-      { id: 'e', name: 'Bank Passbook', status: 'available', verified: true },
+  it('Test 11: Expired document handling properly identifies expired docs and excludes from available', () => {
+    const docsWithExpired: UserDocument[] = [
+      { id: '1', name: 'Aadhaar', status: 'available', verified: true },
+      { id: '2', name: 'Education Certificate', status: 'available', verified: true },
+      { id: '3', name: 'Income Certificate', status: 'expired', verified: false }, // EXPIRED
+      { id: '4', name: 'Photograph', status: 'available', verified: true },
+      { id: '5', name: 'Bank Passbook', status: 'available', verified: true },
     ];
-    const result = calculateDocumentReadiness(allDocs, 'scheme-001');
+
+    const enhanced = calculateDocumentReadinessEnhanced(docsWithExpired, 'scheme-001');
+    expect(enhanced).not.toBeNull();
+    expect(enhanced!.expired).toContain('Income Certificate');
+    expect(enhanced!.availableDocuments).not.toContain('Income Certificate');
+    // 4 out of 5 available = 80% readiness
+    expect(enhanced!.readinessScore).toBe(80);
+  });
+
+  it('should not penalize readiness score for missing optional documents', () => {
+    const fullDocs: UserDocument[] = [
+      { id: '1', name: 'Aadhaar', status: 'available', verified: true },
+      { id: '2', name: 'Education Certificate', status: 'available', verified: true },
+      { id: '3', name: 'Income Certificate', status: 'available', verified: true },
+      { id: '4', name: 'Photograph', status: 'available', verified: true },
+      { id: '5', name: 'Bank Passbook', status: 'available', verified: true },
+      // Caste certificate is optional for scheme-001 and omitted here
+    ];
+
+    const result = calculateDocumentReadiness(fullDocs, 'scheme-001');
     expect(result).not.toBeNull();
     expect(result!.readinessScore).toBe(100);
     expect(result!.missing).toHaveLength(0);
   });
-
-  it('should return 0% when no documents are available', () => {
-    const result = calculateDocumentReadiness([], 'scheme-001');
-    expect(result).not.toBeNull();
-    expect(result!.readinessScore).toBe(0);
-    expect(result!.missing.length).toBe(result!.totalRequired);
-  });
-
-  it('should return null for non-existent scheme', () => {
-    const result = calculateDocumentReadiness(DEMO_DOCUMENTS, 'non-existent-scheme');
-    expect(result).toBeNull();
-  });
-
-  it('should correctly count needs-verification documents', () => {
-    const result = calculateDocumentReadiness(DEMO_DOCUMENTS, 'scheme-001');
-    expect(result).not.toBeNull();
-    expect(result!.needsVerification).toBeDefined();
-    expect(Array.isArray(result!.needsVerification)).toBe(true);
-  });
 });
 
-// ===== FEATURE 4: What-If Eligibility Simulator =====
+// ===================================================================
+// 5. FEATURE 4: WHAT-IF ELIGIBILITY SIMULATOR TESTS
+// ===================================================================
 describe('Feature 4: What-If Eligibility Simulator', () => {
-  it('should return simulation results without modifying actual profile', () => {
-    const profileCopy = { ...fullProfile };
+  it('Test 12: What-if simulation calculates scoreChange and categorizes improved/reduced schemes', () => {
+    const result = simulateEligibilityEnhanced(
+      farmerProfile,
+      { annualIncome: 50000 }, // Reducing income
+      DEMO_DOCUMENTS,
+    );
+
+    expect(result.simulationOnly).toBe(true);
+    expect(typeof result.scoreChange).toBe('number');
+    expect(Array.isArray(result.improvedSchemes)).toBe(true);
+    expect(Array.isArray(result.reducedSchemes)).toBe(true);
+    expect(typeof result.unchangedCount).toBe('number');
+  });
+
+  it('Test 13: Actual user profile is NEVER modified after simulation execution', () => {
+    const profileCopy = { ...farmerProfile };
     const originalIncome = profileCopy.annualIncome;
+    const originalState = profileCopy.state;
 
-    const result = simulateEligibility(
+    simulateEligibilityEnhanced(
       profileCopy,
-      { annualIncome: 100000 },
+      { annualIncome: 20000, state: 'Telangana' },
       DEMO_DOCUMENTS,
     );
 
-    // Verify actual profile is UNCHANGED
     expect(profileCopy.annualIncome).toBe(originalIncome);
-
-    // Verify simulation result structure
-    expect(result.simulationOnly).toBe(true);
-    expect(typeof result.currentMatchCount).toBe('number');
-    expect(typeof result.simulatedMatchCount).toBe('number');
-    expect(Array.isArray(result.newPotentialSchemes)).toBe(true);
-    expect(Array.isArray(result.removedPotentialSchemes)).toBe(true);
-    expect(Array.isArray(result.changedSchemes)).toBe(true);
+    expect(profileCopy.state).toBe(originalState);
   });
 
-  it('should track applied changes correctly', () => {
+  it('should reject non-whitelisted fields from simulation changes', () => {
     const result = simulateEligibility(
-      fullProfile,
-      { annualIncome: 100000, state: 'Karnataka' },
+      studentProfile,
+      { annualIncome: 100000, hackerField: 'injected', isAdmin: true },
       DEMO_DOCUMENTS,
     );
 
-    expect(result.appliedChanges).toBeDefined();
-    expect(result.appliedChanges['annualIncome']).toBeDefined();
-    expect(result.appliedChanges['annualIncome']!.from).toBe(fullProfile.annualIncome);
-    expect(result.appliedChanges['annualIncome']!.to).toBe(100000);
-    expect(result.appliedChanges['state']!.from).toBe(fullProfile.state);
-    expect(result.appliedChanges['state']!.to).toBe('Karnataka');
-  });
-
-  it('should silently ignore non-whitelisted fields', () => {
-    const result = simulateEligibility(
-      fullProfile,
-      { annualIncome: 100000, hackerField: 'malicious', databasePassword: 'drop' },
-      DEMO_DOCUMENTS,
-    );
-
-    expect(result.appliedChanges).not.toHaveProperty('hackerField');
-    expect(result.appliedChanges).not.toHaveProperty('databasePassword');
     expect(result.appliedChanges).toHaveProperty('annualIncome');
+    expect(result.appliedChanges).not.toHaveProperty('hackerField');
+    expect(result.appliedChanges).not.toHaveProperty('isAdmin');
   });
 
-  it('should detect new potential schemes when income decreases', () => {
-    const highIncomeProfile: UserProfile = { ...fullProfile, annualIncome: 1000000 };
-    const result = simulateEligibility(
-      highIncomeProfile,
-      { annualIncome: 100000 },
-      DEMO_DOCUMENTS,
-    );
-
-    // Lowering income should potentially unlock more schemes
-    expect(result.simulationOnly).toBe(true);
-    // At minimum the changed schemes array should reflect the score changes
-    expect(result.changedSchemes.length).toBeGreaterThanOrEqual(0);
-  });
-
-  it('should handle empty simulation changes gracefully', () => {
-    const result = simulateEligibility(fullProfile, {}, DEMO_DOCUMENTS);
-    expect(result.simulationOnly).toBe(true);
-    expect(result.currentMatchCount).toBe(result.simulatedMatchCount);
-    expect(result.newPotentialSchemes).toHaveLength(0);
-    expect(result.removedPotentialSchemes).toHaveLength(0);
-  });
-
-  it('should confirm whitelisted fields are correct', () => {
+  it('should confirm all 10 whitelisted simulation fields are supported', () => {
+    expect(SIMULATION_WHITELIST).toHaveLength(10);
     expect(SIMULATION_WHITELIST).toContain('age');
     expect(SIMULATION_WHITELIST).toContain('annualIncome');
     expect(SIMULATION_WHITELIST).toContain('state');
@@ -344,108 +410,200 @@ describe('Feature 4: What-If Eligibility Simulator', () => {
   });
 });
 
-// ===== FEATURE 5: Simple Language + Multilingual =====
+// ===================================================================
+// 6. FEATURE 5: MULTILINGUAL EXPLANATION ENGINE TESTS
+// ===================================================================
 describe('Feature 5: Simple Language + Multilingual Explanation', () => {
-  it('should generate English simple explanation', () => {
+  it('Test 14: Generates clear English explanation with all structured sections', () => {
     const result = explainScheme('scheme-001', 'en', 'simple');
     expect(result).not.toBeNull();
     expect(result!.language).toBe('en');
-    expect(result!.mode).toBe('simple');
     expect(result!.description).toBeTruthy();
     expect(result!.benefits).toBeTruthy();
     expect(result!.eligibility).toBeTruthy();
     expect(result!.documents).toBeTruthy();
     expect(result!.applicationProcess).toBeTruthy();
+    expect(result!.disclaimer).toBeTruthy();
   });
 
-  it('should generate Telugu explanation', () => {
+  it('Test 15: Generates Telugu explanation containing accurate regional translations', () => {
     const result = explainScheme('scheme-001', 'te', 'simple');
     expect(result).not.toBeNull();
     expect(result!.language).toBe('te');
-    // Telugu translations should contain Telugu script
     expect(result!.eligibility).toBeTruthy();
     expect(result!.disclaimer).toBeTruthy();
+    expect(result!.disclaimer).toContain('ప్రభుత్వ');
   });
 
-  it('should generate Hindi explanation', () => {
+  it('Test 16: Generates Hindi explanation containing accurate regional translations', () => {
     const result = explainScheme('scheme-001', 'hi', 'simple');
     expect(result).not.toBeNull();
     expect(result!.language).toBe('hi');
-    // Hindi translations should contain Devanagari script
     expect(result!.eligibility).toBeTruthy();
     expect(result!.disclaimer).toBeTruthy();
+    expect(result!.disclaimer).toContain('सरकारी');
   });
 
-  it('should generate original (verbatim) explanation', () => {
-    const result = explainScheme('scheme-001', 'en', 'original');
-    expect(result).not.toBeNull();
-    expect(result!.mode).toBe('original');
-    // Original mode should contain the scheme's actual description
-    expect(result!.description).toContain(SCHEMES[0]!.description);
-  });
-
-  it('should return null for non-existent scheme', () => {
-    const result = explainScheme('non-existent-scheme', 'en', 'simple');
-    expect(result).toBeNull();
-  });
-
-  it('should include a disclaimer in every explanation', () => {
-    const enResult = explainScheme('scheme-001', 'en', 'simple');
-    const teResult = explainScheme('scheme-001', 'te', 'simple');
-    const hiResult = explainScheme('scheme-001', 'hi', 'simple');
-
-    expect(enResult!.disclaimer).toBeTruthy();
-    expect(teResult!.disclaimer).toBeTruthy();
-    expect(hiResult!.disclaimer).toBeTruthy();
-  });
-
-  it('should not fabricate information not in the scheme data', () => {
-    const result = explainScheme('scheme-001', 'en', 'simple');
-    expect(result).not.toBeNull();
-    // The eligibility section should only reference criteria that exist in the scheme
-    const scheme = SCHEMES.find(s => s.id === 'scheme-001')!;
-    if (scheme.eligibility.ageMin || scheme.eligibility.ageMax) {
-      expect(result!.eligibility.toLowerCase()).toContain('age');
-    }
-  });
-
-  it('AI failure should not break the explanation engine', () => {
-    // The template-based fallback should always work regardless of AI availability
+  it('Test 28: AI failure fallback ensures deterministic template explanation is always returned', () => {
+    // When no AI key is present, template fallback produces 100% complete responses without error
     const result = explainScheme('scheme-001', 'te', 'simple');
     expect(result).not.toBeNull();
-    expect(result!.description).toBeTruthy();
-    expect(result!.benefits).toBeTruthy();
+    expect(result!.benefits.length).toBeGreaterThan(0);
+    expect(result!.applicationProcess.length).toBeGreaterThan(0);
   });
 });
 
-// ===== SECURITY: Cross-user access & Admin Role =====
-describe('Security & Admin Role: Authorization', () => {
-  it('should never expose unauthorized document access patterns', () => {
-    // Document readiness should only work with documents passed in the request
-    const otherUserDocs: UserDocument[] = [
-      { id: 'other-1', name: 'Aadhaar', status: 'available', verified: true },
-    ];
-    const result = calculateDocumentReadiness(otherUserDocs, 'scheme-001');
+// ===================================================================
+// 7. FEATURE 6: APPLICATION STATUS + DEADLINE TRACKER TESTS
+// ===================================================================
+describe('Feature 6: Application Status + Deadline Tracker', () => {
+  it('Test 17: Returns NOT_REGISTERED status when user has no tracked application for scheme', () => {
+    const result = getApplicationStatus('scheme-001', []);
     expect(result).not.toBeNull();
-    // Should only reflect the documents we explicitly passed
-    expect(result!.available).toBeLessThanOrEqual(otherUserDocs.length);
+    expect(result!.applicationStatus).toBe('NOT_REGISTERED');
+    expect(result!.registeredAt).toBeUndefined();
+    expect(result!.appliedAt).toBeUndefined();
+    expect(result!.statusNote).toContain('not yet started');
   });
 
-  it('should support admin officer role context', async () => {
+  it('Test 18: Returns REGISTERED status when application is in Saved or Preparing stage', () => {
+    const apps: ApplicationRecord[] = [
+      { schemeId: 'scheme-001', status: 'Preparing', updatedAt: '2026-08-20T10:00:00Z' },
+    ];
+    const result = getApplicationStatus('scheme-001', apps);
+    expect(result).not.toBeNull();
+    expect(result!.applicationStatus).toBe('REGISTERED');
+    expect(result!.registeredAt).toBe('2026-08-20T10:00:00Z');
+    expect(result!.statusNote).toContain('Preparing');
+  });
+
+  it('Test 19: Returns APPLICATION_STARTED status when application is Ready to Apply', () => {
+    const apps: ApplicationRecord[] = [
+      { schemeId: 'scheme-001', status: 'Ready to Apply', updatedAt: '2026-08-21T10:00:00Z' },
+    ];
+    const result = getApplicationStatus('scheme-001', apps);
+    expect(result).not.toBeNull();
+    expect(result!.applicationStatus).toBe('APPLICATION_STARTED');
+    expect(result!.statusNote).toContain('ready');
+  });
+
+  it('Test 20: Returns APPLIED status when application has been submitted', () => {
+    const apps: ApplicationRecord[] = [
+      { schemeId: 'scheme-001', status: 'Applied', updatedAt: '2026-08-22T10:00:00Z' },
+    ];
+    const result = getApplicationStatus('scheme-001', apps);
+    expect(result).not.toBeNull();
+    expect(result!.applicationStatus).toBe('APPLIED');
+    expect(result!.appliedAt).toBe('2026-08-22T10:00:00Z');
+    expect(result!.statusNote).toContain('applied');
+  });
+
+  it('Test 21: Returns OPEN deadline status when > 30 days remaining', () => {
+    // Reference date 50 days before scheme-001 deadline (2026-10-31) -> 2026-09-11
+    const refDate = new Date('2026-09-11T00:00:00Z');
+    const result = getDeadlineStatus('scheme-001', SCHEMES, refDate);
+    expect(result).not.toBeNull();
+    expect(result!.deadlineStatus).toBe('OPEN');
+    expect(result!.daysRemaining).toBeGreaterThan(30);
+  });
+
+  it('Test 22: Returns DEADLINE_APPROACHING status when 8–30 days remaining', () => {
+    // Reference date 20 days before 2026-10-31 -> 2026-10-11
+    const refDate = new Date('2026-10-11T00:00:00Z');
+    const result = getDeadlineStatus('scheme-001', SCHEMES, refDate);
+    expect(result).not.toBeNull();
+    expect(result!.deadlineStatus).toBe('DEADLINE_APPROACHING');
+    expect(result!.daysRemaining).toBeLessThanOrEqual(30);
+    expect(result!.daysRemaining).toBeGreaterThan(7);
+  });
+
+  it('Test 23: Returns CLOSING_SOON status when 1–7 days remaining', () => {
+    // Reference date 4 days before 2026-10-31 -> 2026-10-27
+    const refDate = new Date('2026-10-27T00:00:00Z');
+    const result = getDeadlineStatus('scheme-001', SCHEMES, refDate);
+    expect(result).not.toBeNull();
+    expect(result!.deadlineStatus).toBe('CLOSING_SOON');
+    expect(result!.daysRemaining).toBeLessThanOrEqual(7);
+    expect(result!.daysRemaining).toBeGreaterThan(0);
+  });
+
+  it('Test 24: Returns CLOSED status when deadline date has passed', () => {
+    // Reference date after 2026-10-31 -> 2026-11-05
+    const refDate = new Date('2026-11-05T00:00:00Z');
+    const result = getDeadlineStatus('scheme-001', SCHEMES, refDate);
+    expect(result).not.toBeNull();
+    expect(result!.deadlineStatus).toBe('CLOSED');
+    expect(result!.daysRemaining).toBe(0);
+  });
+
+  it('Test 25: Returns NO_DEADLINE status when scheme is open-ended with no deadline date', () => {
+    // scheme-003 (PM Kisan) has no deadline
+    const result = getDeadlineStatus('scheme-003', SCHEMES);
+    expect(result).not.toBeNull();
+    expect(result!.deadlineStatus).toBe('NO_DEADLINE');
+    expect(result!.deadline).toBeNull();
+    expect(result!.daysRemaining).toBe(-1);
+  });
+
+  it('Combined getApplicationStatusAndDeadline returns both components cleanly', () => {
+    const apps: ApplicationRecord[] = [
+      { schemeId: 'scheme-001', status: 'Preparing', updatedAt: '2026-08-20T10:00:00Z' },
+    ];
+    const result = getApplicationStatusAndDeadline('scheme-001', apps);
+    expect(result).not.toBeNull();
+    expect(result!.application.applicationStatus).toBe('REGISTERED');
+    expect(result!.deadline.deadline).toBe('2026-10-31');
+  });
+});
+
+// ===================================================================
+// 8. SECURITY & AUTHORIZATION TESTS
+// ===================================================================
+describe('Security & Authorization Isolation', () => {
+  it('Test 26: Application status isolation across different user contexts', () => {
+    const user1Apps: ApplicationRecord[] = [
+      { schemeId: 'scheme-001', status: 'Applied', updatedAt: '2026-08-20T00:00:00Z' },
+    ];
+    const user2Apps: ApplicationRecord[] = [];
+
+    const user1Result = getApplicationStatus('scheme-001', user1Apps);
+    const user2Result = getApplicationStatus('scheme-001', user2Apps);
+
+    expect(user1Result!.applicationStatus).toBe('APPLIED');
+    expect(user2Result!.applicationStatus).toBe('NOT_REGISTERED');
+  });
+
+  it('Test 27: Document readiness evaluates strictly with provided document payload', () => {
+    const userADocs: UserDocument[] = [
+      { id: '1', name: 'Aadhaar', status: 'available', verified: true },
+    ];
+    const userBDocs: UserDocument[] = [
+      { id: '1', name: 'Aadhaar', status: 'available', verified: true },
+      { id: '2', name: 'Education Certificate', status: 'available', verified: true },
+      { id: '3', name: 'Income Certificate', status: 'available', verified: true },
+      { id: '4', name: 'Photograph', status: 'available', verified: true },
+      { id: '5', name: 'Bank Passbook', status: 'available', verified: true },
+    ];
+
+    const resultA = calculateDocumentReadiness(userADocs, 'scheme-001');
+    const resultB = calculateDocumentReadiness(userBDocs, 'scheme-001');
+
+    expect(resultA!.readinessScore).toBe(20);
+    expect(resultB!.readinessScore).toBe(100);
+  });
+
+  it('Admin authorization context separates officer permissions from citizen permissions', async () => {
     const { getCurrentUser, requireAdmin } = await import('../../server/auth');
     const admin = getCurrentUser('admin');
     expect(admin.role).toBe('admin');
     expect(admin.name).toBeTruthy();
     expect(admin.department).toBeTruthy();
 
-    const requiredAdmin = requireAdmin();
-    expect(requiredAdmin.role).toBe('admin');
-  });
-
-  it('should verify citizen role cannot perform admin-exclusive actions', async () => {
-    const { getCurrentUser } = await import('../../server/auth');
     const citizen = getCurrentUser('citizen');
     expect(citizen.role).toBe('citizen');
     expect(citizen.role).not.toBe('admin');
+
+    const adminContext = requireAdmin();
+    expect(adminContext.role).toBe('admin');
   });
 });

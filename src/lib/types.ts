@@ -102,7 +102,7 @@ export interface MatchFactor {
   label: string;
   required: string;
   yourValue: string;
-  status: "match" | "verify" | "mismatch" | "unknown";
+  status: "match" | "partial" | "verify" | "mismatch" | "unknown";
   weight: number;
 }
 
@@ -135,7 +135,7 @@ export interface EligibilityAssessment {
   note: string;
 }
 
-export type DocumentStatus = "available" | "missing" | "needs-verification";
+export type DocumentStatus = "available" | "missing" | "needs-verification" | "expired";
 
 export interface UserDocument {
   id: string;
@@ -289,4 +289,146 @@ export interface SchemeExplanationResult {
   documents: string;
   applicationProcess: string;
   disclaimer: string;
+}
+
+// ===== Dynamic Profile Match Scoring Types =====
+
+/** Per-criterion score breakdown */
+export interface ScoreBreakdownItem {
+  label: string;
+  weight: number;
+  status: "MATCHED" | "PARTIAL" | "FAILED" | "UNKNOWN" | "VERIFY";
+  points: number;
+  maxPoints: number;
+  yourValue: string;
+  required: string;
+}
+
+/** Data confidence levels */
+export type DataConfidence = "HIGH" | "MEDIUM" | "LOW";
+
+/** Match classification labels */
+export type MatchLabel =
+  | "EXCELLENT_MATCH"
+  | "STRONG_MATCH"
+  | "POTENTIAL_MATCH"
+  | "LOW_MATCH"
+  | "WEAK_MATCH";
+
+/** Complete profile match result with dynamic scoring */
+export interface ProfileMatchResult {
+  score: number;
+  label: MatchLabel;
+  dataConfidence: DataConfidence;
+  breakdown: ScoreBreakdownItem[];
+  criteriaEvaluated: number;
+  criteriaMatched: number;
+  criteriaPartial: number;
+  criteriaFailed: number;
+  criteriaUnknown: number;
+}
+
+// ===== Feature 2 Enhanced: Explainable Eligibility (with PARTIALLY_MATCHED) =====
+
+export interface EnhancedEligibilityResult {
+  schemeId: string;
+  schemeName: string;
+  status: "MATCHED" | "PARTIALLY_MATCHED" | "FAILED" | "UNKNOWN";
+  matchedConditions: string[];
+  partialConditions: string[];
+  failedConditions: string[];
+  missingInformation: string[];
+  scoreBreakdown: ScoreBreakdownItem[];
+  overallNote: string;
+}
+
+// ===== Feature 3 Enhanced: Document Readiness (with expired handling) =====
+
+export interface EnhancedDocumentReadinessResult {
+  schemeId: string;
+  schemeName: string;
+  readinessScore: number;
+  totalRequired: number;
+  available: number;
+  missing: string[];
+  expired: string[];
+  availableDocuments: string[];
+  needsVerification: string[];
+  optionalDocuments: string[];
+  optionalAvailable: string[];
+}
+
+// ===== Feature 4 Enhanced: Simulation (with categorized changes) =====
+
+export interface EnhancedSimulationResult {
+  simulationOnly: true;
+  currentMatchCount: number;
+  simulatedMatchCount: number;
+  scoreChange: number;
+  newPotentialSchemes: Array<{ schemeId: string; schemeName: string; matchScore: number }>;
+  removedPotentialSchemes: Array<{ schemeId: string; schemeName: string; matchScore: number }>;
+  improvedSchemes: Array<{ schemeId: string; schemeName: string; beforeScore: number; afterScore: number; change: number }>;
+  reducedSchemes: Array<{ schemeId: string; schemeName: string; beforeScore: number; afterScore: number; change: number }>;
+  unchangedCount: number;
+  changedSchemes: Array<{
+    schemeId: string;
+    schemeName: string;
+    beforeScore: number;
+    afterScore: number;
+  }>;
+  appliedChanges: Record<string, { from: string | number | boolean | null; to: string | number | boolean | null }>;
+}
+
+// ===== Feature 6: Application Status + Deadline Tracker =====
+
+export type ServerApplicationStatus =
+  | "NOT_REGISTERED"
+  | "REGISTERED"
+  | "APPLICATION_STARTED"
+  | "APPLIED"
+  | "UNKNOWN";
+
+export type DeadlineStatus =
+  | "OPEN"
+  | "DEADLINE_APPROACHING"
+  | "CLOSING_SOON"
+  | "CLOSED"
+  | "NO_DEADLINE"
+  | "UNKNOWN";
+
+export interface ApplicationStatusResult {
+  schemeId: string;
+  schemeName: string;
+  applicationStatus: ServerApplicationStatus;
+  applicationReference?: string | undefined;
+  registeredAt?: string | undefined;
+  appliedAt?: string | undefined;
+  statusNote: string;
+}
+
+export interface DeadlineResult {
+  schemeId: string;
+  schemeName: string;
+  deadline: string | null;
+  daysRemaining: number;
+  deadlineStatus: DeadlineStatus;
+  deadlineSource: string;
+  lastUpdated: string;
+}
+
+export interface ApplicationStatusAndDeadlineResult {
+  application: ApplicationStatusResult;
+  deadline: DeadlineResult;
+}
+
+// ===== Unified Scheme Intelligence =====
+
+export interface SchemeIntelligenceResult {
+  scheme: { id: string; name: string; category: string; department: string };
+  match: ProfileMatchResult;
+  eligibility: EnhancedEligibilityResult;
+  documents: EnhancedDocumentReadinessResult;
+  application: ApplicationStatusResult;
+  deadline: DeadlineResult;
+  action: { required: boolean; message: string };
 }

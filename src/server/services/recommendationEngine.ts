@@ -1,6 +1,6 @@
 import { SCHEMES } from '@/data/schemes';
-import { evaluateCriteria, profileMatchScore, buildAssessment, documentReadinessScore } from '@/lib/matching';
-import type { UserProfile, UserDocument, Scheme, MatchFactor } from '@/lib/types';
+import { computeProfileMatchWithBreakdown } from '@/lib/matching';
+import type { UserProfile, UserDocument, Scheme, ScoreBreakdownItem, ProfileMatchResult } from '@/lib/types';
 
 export interface MissedSchemeResult {
   schemeId: string;
@@ -10,16 +10,15 @@ export interface MissedSchemeResult {
   matchedCriteria: string[];
   failedCriteria: string[];
   unknownCriteria: string[];
+  partialCriteria: string[];
   reason: string;
   category: string;
   benefitSummary: string;
+  scoreBreakdown: ScoreBreakdownItem[];
+  dataConfidence: 'HIGH' | 'MEDIUM' | 'LOW';
+  matchLabel: string;
 }
 
-/**
- * Deterministic recommendation engine.
- * Scores are PROFILE MATCH percentages — never "official eligibility".
- * Uses weighted criteria scoring based on available scheme data.
- */
 export function recommendSchemes(
   userProfile: UserProfile,
   schemes: Scheme[] = SCHEMES,
@@ -30,7 +29,7 @@ export function recommendSchemes(
   return schemes
     .filter(scheme => !excludeIds.includes(scheme.id))
     .map(scheme => scoreScheme(userProfile, scheme, documents))
-    .filter(result => result.matchScore >= 30)  // Only return schemes with meaningful match
+    .filter(result => result.matchScore >= 30)
     .sort((a, b) => b.matchScore - a.matchScore)
     .slice(0, limit);
 }
@@ -40,29 +39,27 @@ function scoreScheme(
   scheme: Scheme,
   documents: UserDocument[],
 ): MissedSchemeResult {
-  const criteria = evaluateCriteria(profile, scheme);
-  const assessment = buildAssessment(profile, scheme);
-  const profileMatch = profileMatchScore(criteria);
+  const matchResult = computeProfileMatchWithBreakdown(profile, scheme, documents);
   
-  // Weighted scoring using ONLY criteria that exist in this scheme's data
-  const eligibilityMatch = assessment.status === 'likely-eligible' ? 100
-    : assessment.status === 'needs-verification' ? 72 : 38;
-  const docReadiness = documentReadinessScore(scheme, documents);
-  
-  const matchScore = Math.max(5, Math.min(99,
-    Math.round(profileMatch * 0.5 + eligibilityMatch * 0.35 + docReadiness * 0.15)
-  ));
+  const matchScore = matchResult.score;
 
-  const matchedCriteria = criteria.filter(c => c.status === 'match').map(c => c.label);
-  const failedCriteria = criteria.filter(c => c.status === 'mismatch').map(c => c.label);
-  const unknownCriteria = criteria.filter(c => c.status === 'unknown' || c.status === 'verify').map(c => c.label);
+  const matchedCriteria = matchResult.breakdown.filter(c => c.status === 'MATCHED').map(c => c.label);
+  const failedCriteria = matchResult.breakdown.filter(c => c.status === 'FAILED').map(c => c.label);
+  const unknownCriteria = matchResult.breakdown.filter(c => c.status === 'UNKNOWN' || c.status === 'VERIFY').map(c => c.label);
+  const partialCriteria = matchResult.breakdown.filter(c => c.status === 'PARTIAL').map(c => c.label);
 
   const status: MissedSchemeResult['status'] = 
     matchScore >= 75 ? 'POTENTIAL_MATCH'
     : matchScore >= 50 ? 'PARTIAL_MATCH'
     : 'UNLIKELY_MATCH';
 
-  const reason = buildReason(matchedCriteria, failedCriteria, unknownCriteria, criteria.length);
+  const reason = buildReason(
+    matchedCriteria, 
+    failedCriteria, 
+    unknownCriteria, 
+    partialCriteria, 
+    matchResult.breakdown.length
+  );
 
   return {
     schemeId: scheme.id,
@@ -72,18 +69,25 @@ function scoreScheme(
     matchedCriteria,
     failedCriteria,
     unknownCriteria,
+    partialCriteria,
     reason,
     category: scheme.category,
     benefitSummary: scheme.benefitSummary,
+    scoreBreakdown: matchResult.breakdown,
+    dataConfidence: matchResult.dataConfidence,
+    matchLabel: matchResult.label,
   };
 }
 
 function buildReason(
-  matched: string[], failed: string[], unknown: string[], total: number,
+  matched: string[], failed: string[], unknown: string[], partial: string[], total: number,
 ): string {
   const parts: string[] = [];
   if (matched.length > 0) {
     parts.push(`Your available profile information matches the ${matched.join(', ').toLowerCase()} criteria`);
+  }
+  if (partial.length > 0) {
+    parts.push(`You partially match the ${partial.join(', ').toLowerCase()} criteria`);
   }
   if (failed.length > 0) {
     parts.push(`${failed.join(', ')} did not match`);

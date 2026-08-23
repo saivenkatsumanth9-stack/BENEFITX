@@ -81,7 +81,7 @@ export const DocumentReadinessRequestSchema = z.object({
   documents: z.array(z.object({
     id: z.string(),
     name: z.string(),
-    status: z.enum(['available', 'missing', 'needs-verification']),
+    status: z.enum(['available', 'missing', 'needs-verification', 'expired']),
     verified: z.boolean(),
     fileName: z.string().optional(),
     uploadedAt: z.string().optional(),
@@ -135,7 +135,7 @@ export const SimulationRequestSchema = z.object({
   documents: z.array(z.object({
     id: z.string(),
     name: z.string(),
-    status: z.enum(['available', 'missing', 'needs-verification']),
+    status: z.enum(['available', 'missing', 'needs-verification', 'expired']),
     verified: z.boolean(),
   })).optional().default([]),
 });
@@ -192,3 +192,77 @@ export interface ApiResponse<T> {
   } | undefined;
   timestamp: string;
 }
+
+// ===== Feature 6: Application Status + Deadline Tracker =====
+
+/** Zod profile shape reusable across schemas */
+const ProfileSchema = z.object({
+  name: z.string().optional(),
+  age: z.number().nullable(),
+  gender: z.string(),
+  state: z.string(),
+  district: z.string().optional(),
+  areaType: z.string(),
+  occupation: z.string(),
+  educationLevel: z.string(),
+  course: z.string().optional(),
+  isStudent: z.boolean().optional(),
+  annualIncome: z.number().nullable(),
+  employmentStatus: z.string().optional(),
+  isFarmer: z.boolean().optional(),
+  landHoldingAcres: z.number().nullable().optional(),
+  hasDisability: z.boolean().optional(),
+  isSeniorCitizen: z.boolean().optional(),
+});
+
+export const ApplicationStatusRequestSchema = z.object({
+  schemeId: z.string().min(1),
+  userId: z.string().optional().default('demo-user-001'),
+  applications: z.array(z.object({
+    schemeId: z.string(),
+    status: z.enum(['Saved', 'Preparing', 'Ready to Apply', 'Applied', 'Under Review', 'Completed']),
+    updatedAt: z.string(),
+  })).optional().default([]),
+});
+
+export type ApplicationStatusRequest = z.infer<typeof ApplicationStatusRequestSchema>;
+
+// ===== Unified Scheme Intelligence =====
+
+export const SchemeIntelligenceRequestSchema = z.object({
+  schemeId: z.string().min(1),
+  profile: ProfileSchema,
+  documents: z.array(z.object({
+    id: z.string(),
+    name: z.string(),
+    status: z.enum(['available', 'missing', 'needs-verification', 'expired']),
+    verified: z.boolean(),
+    fileName: z.string().optional(),
+    uploadedAt: z.string().optional(),
+    expiresAt: z.string().optional(),
+  })).optional().default([]),
+  applications: z.array(z.object({
+    schemeId: z.string(),
+    status: z.enum(['Saved', 'Preparing', 'Ready to Apply', 'Applied', 'Under Review', 'Completed']),
+    updatedAt: z.string(),
+  })).optional().default([]),
+});
+
+export type SchemeIntelligenceRequest = z.infer<typeof SchemeIntelligenceRequestSchema>;
+
+// Re-export enhanced types from lib/types for server-side consumers
+export type {
+  ScoreBreakdownItem,
+  DataConfidence,
+  MatchLabel,
+  ProfileMatchResult,
+  EnhancedEligibilityResult,
+  EnhancedDocumentReadinessResult,
+  EnhancedSimulationResult,
+  ServerApplicationStatus,
+  DeadlineStatus,
+  ApplicationStatusResult,
+  DeadlineResult,
+  ApplicationStatusAndDeadlineResult,
+  SchemeIntelligenceResult,
+} from '@/lib/types';
