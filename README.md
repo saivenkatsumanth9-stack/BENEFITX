@@ -2,8 +2,16 @@
 
 > **“Discover. Understand. Prepare. Apply.”**
 
-**Live Production URL:** [https://benefit-navigator-main.vercel.app](https://benefit-navigator-main.vercel.app)  
-**Admin Portal:** [https://benefit-navigator-main.vercel.app/admin](https://benefit-navigator-main.vercel.app/admin)  
+An intelligent GovTech decision-support and application-readiness system bridging the discovery gap between government welfare schemes and eligible citizens.
+
+---
+
+## 🌐 Live Production Links & Access Portals
+
+| Portal | Live URL | Access Mode & Demo Credentials |
+|---|---|---|
+| **🚀 Main Citizen Portal** | **[https://benefit-navigator-main.vercel.app](https://benefit-navigator-main.vercel.app)** | **Citizen Access:** Click **"Sign In / Demo"** on top bar.<br>• **Aarav Reddy (Student):** `aarav.reddy@student.in` / `password123`<br>• **Rajesh Kumar (Farmer):** `rajesh.farmer@agri.in` / `password123`<br>• **Sunita Devi (Entrepreneur):** `sunita.crafts@msme.in` / `password123`<br>• Or 1-Click Instant Demo Persona & Mobile OTP |
+| **🏛️ Gov-Admin & Verification Portal** | **[https://benefit-navigator-main.vercel.app/admin](https://benefit-navigator-main.vercel.app/admin)** | **Nodal Officer Access (Isolated Gate):**<br>• **Officer ID:** `admin-officer-001`<br>• **Officer Name:** Dr. K. Srinivas Rao<br>• **Department:** Ministry of Social Justice & Welfare<br>• **Security PIN:** `GOV-ADMIN-2026`<br>• Or 1-Click **"Authorize & Enter Admin Console"** |
 
 ---
 
@@ -32,7 +40,7 @@
 
 ---
 
-## 📱 Complete 16-Route Platform Suite
+## 📱 Complete 17-Route Platform Suite
 
 | Route | Purpose | Key Features |
 |---|---|---|
