@@ -83,7 +83,6 @@ const NAV_ITEMS: NavItem[] = [
 ];
 
 const SECONDARY_NAV = [
-  { label: "Admin Portal", to: "/admin", icon: ShieldCheck },
   { label: "My Profile", to: "/profile", icon: User },
   { label: "Settings", to: "/settings", icon: Settings },
   { label: "Help & Support", to: "/help", icon: HelpCircle },

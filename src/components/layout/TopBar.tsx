@@ -10,6 +10,9 @@ import {
   RotateCcw,
   CheckCircle2,
   Menu,
+  LogIn,
+  LogOut,
+  Users,
 } from "lucide-react";
 
 import { useAppStore } from "@/state/app-store";
@@ -23,7 +26,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { SearchBar } from "@/components/common/SearchBar";
-import { Badge } from "@/components/ui/badge";
+import { CitizenAuthModal } from "@/components/common/CitizenAuthModal";
 
 interface TopBarProps {
   onMenuClick?: () => void;
@@ -32,7 +35,8 @@ interface TopBarProps {
 export function TopBar({ onMenuClick }: TopBarProps) {
   const navigate = useNavigate();
   const [searchOpen, setSearchOpen] = useState(false);
-  const { profile, savedIds, notifications, loadDemoProfile, resetAll } = useAppStore();
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const { profile, savedIds, notifications, resetAll } = useAppStore();
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
@@ -58,23 +62,29 @@ export function TopBar({ onMenuClick }: TopBarProps) {
           >
             <Search className="size-4 text-muted-foreground shrink-0" />
             <span className="truncate text-xs sm:text-sm font-medium">Search schemes, benefits, states...</span>
-            <kbd className="pointer-events-none hidden sm:inline-flex ml-auto h-5 select-none items-center gap-1 rounded bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground border">
-              ⌘K
-            </kbd>
           </button>
         </div>
 
         {/* Right: Quick actions & Profile */}
         <div className="flex items-center gap-2 sm:gap-3">
-          {/* Quick Demo Button (Visible on Desktop) */}
+          {/* Sign In / Switch Account Button */}
           <Button
             variant="outline"
             size="sm"
-            onClick={loadDemoProfile}
-            className="hidden sm:inline-flex rounded-xl text-xs font-semibold gap-1.5 border-teal/30 bg-teal-soft/40 text-teal-foreground hover:bg-teal-soft"
+            onClick={() => setAuthModalOpen(true)}
+            className="rounded-xl text-xs font-bold gap-1.5 border-primary/30 bg-primary-soft/30 text-primary hover:bg-primary-soft"
           >
-            <Sparkles className="size-3.5 text-teal" />
-            <span>Demo Profile</span>
+            {profile ? (
+              <>
+                <Users className="size-3.5" />
+                <span className="hidden sm:inline">Switch Account</span>
+              </>
+            ) : (
+              <>
+                <LogIn className="size-3.5" />
+                <span>Sign In / Demo</span>
+              </>
+            )}
           </Button>
 
           {/* Saved Schemes Link */}
@@ -129,7 +139,7 @@ export function TopBar({ onMenuClick }: TopBarProps) {
                     {profile ? profile.name : "Guest Citizen"}
                   </p>
                   <p className="text-[10px] font-medium text-muted-foreground mt-0.5">
-                    {profile?.occupation || "Setup Profile"}
+                    {profile?.occupation || "Sign In to Access"}
                   </p>
                 </div>
               </Button>
@@ -138,17 +148,13 @@ export function TopBar({ onMenuClick }: TopBarProps) {
               <DropdownMenuLabel className="px-2.5 py-2">
                 <p className="text-xs font-bold text-foreground">{profile?.name || "Guest Citizen"}</p>
                 <p className="text-[11px] font-normal text-muted-foreground truncate">
-                  {profile?.state ? `${profile.district ? `${profile.district}, ` : ""}${profile.state}` : "No profile configured"}
+                  {profile?.state ? `${profile.district ? `${profile.district}, ` : ""}${profile.state}` : "No active session"}
                 </p>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => navigate({ to: "/profile" })} className="rounded-lg cursor-pointer">
                 <User className="size-4 mr-2 text-muted-foreground" />
-                <span>My Profile & Demographics</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => navigate({ to: "/admin" })} className="rounded-lg cursor-pointer font-bold text-primary">
-                <ShieldCheck className="size-4 mr-2 text-primary" />
-                <span>Gov-Admin & Verification</span>
+                <span>My Citizen Profile</span>
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => navigate({ to: "/readiness" })} className="rounded-lg cursor-pointer">
                 <CheckCircle2 className="size-4 mr-2 text-teal" />
@@ -159,13 +165,13 @@ export function TopBar({ onMenuClick }: TopBarProps) {
                 <span>Settings & Preferences</span>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={loadDemoProfile} className="rounded-lg cursor-pointer text-teal font-semibold">
-                <Sparkles className="size-4 mr-2" />
-                <span>Load Aarav Reddy Demo</span>
+              <DropdownMenuItem onClick={() => setAuthModalOpen(true)} className="rounded-lg cursor-pointer text-primary font-bold">
+                <LogIn className="size-4 mr-2" />
+                <span>{profile ? "Switch Citizen Account" : "Sign In with Credentials"}</span>
               </DropdownMenuItem>
               <DropdownMenuItem onClick={resetAll} className="rounded-lg cursor-pointer text-destructive font-semibold">
                 <RotateCcw className="size-4 mr-2" />
-                <span>Reset All Data</span>
+                <span>Log Out / Reset Data</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -174,6 +180,9 @@ export function TopBar({ onMenuClick }: TopBarProps) {
 
       {/* Global Command Search Modal */}
       <SearchBar open={searchOpen} onOpenChange={setSearchOpen} />
+
+      {/* Citizen Authentication & Login Modal */}
+      <CitizenAuthModal open={authModalOpen} onOpenChange={setAuthModalOpen} />
     </>
   );
 }

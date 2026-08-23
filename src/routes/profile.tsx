@@ -113,17 +113,6 @@ function CitizenProfilePage() {
             <Button
               variant="outline"
               size="sm"
-              asChild
-              className="rounded-xl text-xs font-bold gap-1.5 border-primary/30 bg-primary-soft/30 text-primary hover:bg-primary-soft/50"
-            >
-              <Link to="/admin">
-                <ShieldCheck className="size-3.5" />
-                <span>Admin Console</span>
-              </Link>
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
               onClick={loadDemoProfile}
               className="rounded-xl text-xs font-semibold gap-1.5 border-teal/30 bg-teal-soft/40 text-teal-foreground hover:bg-teal-soft"
             >
@@ -133,32 +122,16 @@ function CitizenProfilePage() {
           </div>
         </div>
 
-        {/* Profile Completeness & Role Ribbon */}
-        <div className="grid grid-cols-1 sm:grid-cols-12 gap-4">
-          <div className="sm:col-span-8 surface-card p-5 space-y-3 shadow-sm border-primary/20 bg-primary-soft/10">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-bold text-foreground">Profile Completeness</span>
-              <span className="text-base font-extrabold text-primary tabular-nums">{profileCompleteness}%</span>
-            </div>
-            <Progress value={profileCompleteness} className="h-2 rounded-full" />
-            <p className="text-xs text-muted-foreground">
-              Higher completeness enables BENEFITX to evaluate all eligibility rules with high confidence.
-            </p>
+        {/* Profile Completeness Bar */}
+        <div className="surface-card p-5 space-y-3 shadow-sm border-primary/20 bg-primary-soft/10">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-bold text-foreground">Profile Completeness</span>
+            <span className="text-base font-extrabold text-primary tabular-nums">{profileCompleteness}%</span>
           </div>
-
-          <div className="sm:col-span-4 surface-card p-5 space-y-2 border-teal/30 bg-teal-soft/20 flex flex-col justify-between">
-            <div className="space-y-1">
-              <span className="text-[11px] font-bold uppercase text-teal tracking-wider">Account Role</span>
-              <p className="text-sm font-extrabold text-foreground">Citizen & Nodal Officer</p>
-              <p className="text-[11px] text-muted-foreground">Full scheme discovery & administrative verification access enabled.</p>
-            </div>
-            <Button asChild size="sm" variant="outline" className="w-full text-xs font-bold rounded-xl h-8 mt-2">
-              <Link to="/admin">
-                <span>Open Admin Portal</span>
-                <ChevronRight className="size-3.5 ml-1" />
-              </Link>
-            </Button>
-          </div>
+          <Progress value={profileCompleteness} className="h-2 rounded-full" />
+          <p className="text-xs text-muted-foreground">
+            Higher completeness enables BENEFITX to evaluate all eligibility rules with high confidence.
+          </p>
         </div>
 
         {/* Profile Form */}

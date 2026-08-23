@@ -34,11 +34,26 @@ export const Route = createFileRoute("/admin")({
 });
 
 function AdminDashboardPage() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [officerId, setOfficerId] = useState("admin-officer-001");
+  const [pin, setPin] = useState("GOV-ADMIN-2026");
   const [activeTab, setActiveTab] = useState<"overview" | "schemes" | "verification" | "rules">("overview");
   const [queue, setQueue] = useState(MOCK_VERIFICATION_QUEUE);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedLevel, setSelectedLevel] = useState<string>("all");
   const [selectedScheme, setSelectedScheme] = useState<Scheme | null>(SCHEMES[0] ?? null);
+
+  const handleAdminLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (officerId.trim() && pin.trim()) {
+      setIsAuthenticated(true);
+      toast.success("Nodal Officer Authenticated", {
+        description: "Welcome, Dr. K. Srinivas Rao (Ministry of Social Justice & Welfare)",
+      });
+    } else {
+      toast.error("Please provide valid officer credentials.");
+    }
+  };
 
   const handleAction = (docId: string, citizenName: string, action: "Approved" | "Rejected" | "Reupload") => {
     setQueue((prev) => prev.filter((q) => q.id !== docId));
@@ -64,6 +79,78 @@ function AdminDashboardPage() {
     return true;
   });
 
+  // SCREEN 1: Gov-Admin Security Barrier & Login (If not authenticated)
+  if (!isAuthenticated) {
+    return (
+      <AppLayout>
+        <div className="max-w-xl mx-auto py-12 px-4 space-y-6 animate-in fade-in duration-300">
+          <div className="text-center space-y-2">
+            <div className="inline-flex size-14 rounded-3xl bg-primary-soft text-primary items-center justify-center shadow-xs mx-auto">
+              <ShieldCheck className="size-8" />
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-black text-foreground tracking-tight">
+              Gov-Admin Nodal Portal
+            </h1>
+            <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+              Restricted administrative access for authorized welfare nodal officers and department administrators.
+            </p>
+          </div>
+
+          <div className="surface-card p-6 sm:p-8 space-y-6 rounded-3xl border-primary/20 shadow-md">
+            <form onSubmit={handleAdminLogin} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-foreground">Government Officer ID</label>
+                <Input
+                  value={officerId}
+                  onChange={(e) => setOfficerId(e.target.value)}
+                  placeholder="admin-officer-001"
+                  required
+                  className="h-10 text-xs rounded-xl font-mono"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-foreground">Security PIN / Access Key</label>
+                <Input
+                  type="password"
+                  value={pin}
+                  onChange={(e) => setPin(e.target.value)}
+                  placeholder="••••••••••••"
+                  required
+                  className="h-10 text-xs rounded-xl font-mono"
+                />
+              </div>
+
+              <div className="rounded-2xl bg-muted/40 p-3.5 border border-border space-y-1 text-xs text-muted-foreground">
+                <p className="font-extrabold text-foreground flex items-center gap-1.5">
+                  <ShieldCheck className="size-4 text-teal" />
+                  <span>Authorized Nodal Credentials:</span>
+                </p>
+                <p className="text-[11px]">Officer ID: <code className="text-primary font-bold">admin-officer-001</code></p>
+                <p className="text-[11px]">Officer: <strong>Dr. K. Srinivas Rao</strong></p>
+                <p className="text-[11px]">Dept: <strong>Ministry of Social Justice & Welfare</strong></p>
+                <p className="text-[11px]">Security PIN: <code className="text-teal font-bold">GOV-ADMIN-2026</code></p>
+              </div>
+
+              <div className="pt-2 space-y-2.5">
+                <Button type="submit" className="w-full h-10 rounded-xl text-xs font-bold shadow-sm">
+                  <ShieldCheck className="size-4 mr-1.5" />
+                  <span>Authorize & Enter Admin Console</span>
+                </Button>
+                <Button asChild variant="ghost" className="w-full h-9 rounded-xl text-xs font-semibold text-muted-foreground hover:text-foreground">
+                  <Link to="/">
+                    <span>← Return to Citizen Portal</span>
+                  </Link>
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  // SCREEN 2: Full Gov-Admin Console (When Authenticated)
   return (
     <AppLayout>
       <div className="space-y-8 animate-in fade-in duration-300">
@@ -82,49 +169,66 @@ function AdminDashboardPage() {
             <h1 className="text-2xl sm:text-3xl font-black text-foreground tracking-tight">
               Administrative & Verification Portal
             </h1>
-            <p className="text-sm text-muted-foreground">
-              Officer: <strong>Dr. K. Srinivas Rao</strong> · Ministry of Social Justice & Welfare, Govt. of India
-            </p>
+            <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+              <span>Officer: <strong>Dr. K. Srinivas Rao</strong></span>
+              <span>·</span>
+              <span>Ministry of Social Justice & Welfare, Govt. of India</span>
+            </div>
           </div>
 
-          {/* Quick Tab Switcher */}
-          <div className="flex flex-wrap gap-2 bg-card p-1.5 rounded-2xl border border-border">
+          <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2.5">
+            {/* Quick Tab Switcher */}
+            <div className="flex flex-wrap gap-1.5 bg-card p-1.5 rounded-2xl border border-border">
+              <Button
+                size="sm"
+                variant={activeTab === "overview" ? "default" : "ghost"}
+                onClick={() => setActiveTab("overview")}
+                className="rounded-xl text-xs font-bold"
+              >
+                Overview
+              </Button>
+              <Button
+                size="sm"
+                variant={activeTab === "verification" ? "default" : "ghost"}
+                onClick={() => setActiveTab("verification")}
+                className="rounded-xl text-xs font-bold relative"
+              >
+                Queue
+                {queue.length > 0 && (
+                  <span className="ml-1.5 rounded-full bg-destructive text-destructive-foreground text-[10px] px-1.5 py-0.2 font-black">
+                    {queue.length}
+                  </span>
+                )}
+              </Button>
+              <Button
+                size="sm"
+                variant={activeTab === "schemes" ? "default" : "ghost"}
+                onClick={() => setActiveTab("schemes")}
+                className="rounded-xl text-xs font-bold"
+              >
+                Schemes ({SCHEMES.length})
+              </Button>
+              <Button
+                size="sm"
+                variant={activeTab === "rules" ? "default" : "ghost"}
+                onClick={() => setActiveTab("rules")}
+                className="rounded-xl text-xs font-bold"
+              >
+                Rules Tester
+              </Button>
+            </div>
+
+            {/* Officer Sign Out */}
             <Button
               size="sm"
-              variant={activeTab === "overview" ? "default" : "ghost"}
-              onClick={() => setActiveTab("overview")}
-              className="rounded-xl text-xs font-bold"
+              variant="outline"
+              onClick={() => {
+                setIsAuthenticated(false);
+                toast.info("Signed out from Gov-Admin console.");
+              }}
+              className="rounded-xl text-xs font-bold h-9 text-muted-foreground hover:text-destructive"
             >
-              Overview & Analytics
-            </Button>
-            <Button
-              size="sm"
-              variant={activeTab === "verification" ? "default" : "ghost"}
-              onClick={() => setActiveTab("verification")}
-              className="rounded-xl text-xs font-bold relative"
-            >
-              Verification Queue
-              {queue.length > 0 && (
-                <span className="ml-1.5 rounded-full bg-destructive text-destructive-foreground text-[10px] px-1.5 py-0.2 font-black">
-                  {queue.length}
-                </span>
-              )}
-            </Button>
-            <Button
-              size="sm"
-              variant={activeTab === "schemes" ? "default" : "ghost"}
-              onClick={() => setActiveTab("schemes")}
-              className="rounded-xl text-xs font-bold"
-            >
-              Scheme Registry ({SCHEMES.length})
-            </Button>
-            <Button
-              size="sm"
-              variant={activeTab === "rules" ? "default" : "ghost"}
-              onClick={() => setActiveTab("rules")}
-              className="rounded-xl text-xs font-bold"
-            >
-              Rule Engine Tester
+              Sign Out
             </Button>
           </div>
         </div>
