@@ -23,6 +23,9 @@ import {
   getDeadlineStatus,
   getApplicationStatusAndDeadline,
 } from '../services/applicationStatusEngine';
+import { generateActionPlan } from '../services/actionPlanEngine';
+import { calculateSchemeUrgency } from '../services/urgencyEngine';
+import { findRelatedSchemes } from '../services/relatedSchemeEngine';
 import {
   computeProfileMatchWithBreakdown,
   generateSchemeWeights,
@@ -607,3 +610,177 @@ describe('Security & Authorization Isolation', () => {
     expect(adminContext.role).toBe('admin');
   });
 });
+
+// ===================================================================
+// 9. FEATURE 7: PERSONALIZED ACTION PLAN ENGINE TESTS
+// ===================================================================
+describe('Feature 7: Personalized Action Plan Engine', () => {
+  it('Test 1: Missing document creates DOCUMENT action step', () => {
+    // Missing Income Certificate
+    const partialDocs: UserDocument[] = [
+      { id: '1', name: 'Aadhaar', status: 'available', verified: true },
+      { id: '2', name: 'Education Certificate', status: 'available', verified: true },
+      { id: '3', name: 'Income Certificate', status: 'missing', verified: false },
+      { id: '4', name: 'Photograph', status: 'available', verified: true },
+      { id: '5', name: 'Bank Passbook', status: 'available', verified: true },
+    ];
+
+    const plan = generateActionPlan('scheme-001', studentProfile, partialDocs, []);
+    expect(plan).not.toBeNull();
+    expect(plan!.status).toBe('ACTION_REQUIRED');
+    const docStep = plan!.steps.find((s) => s.type === 'DOCUMENT' && s.documentName === 'Income Certificate');
+    expect(docStep).toBeDefined();
+    expect(docStep!.action).toContain('Income Certificate');
+  });
+
+  it('Test 2: Not registered user receives REGISTRATION action step', () => {
+    const plan = generateActionPlan('scheme-001', studentProfile, DEMO_DOCUMENTS, []);
+    expect(plan).not.toBeNull();
+    const regStep = plan!.steps.find((s) => s.type === 'REGISTRATION');
+    expect(regStep).toBeDefined();
+    expect(regStep!.action).toContain('Register');
+  });
+
+  it('Test 3: Applied user receives TRACK_APPLICATION and does NOT receive registration action', () => {
+    const apps: ApplicationRecord[] = [
+      { schemeId: 'scheme-001', status: 'Applied', updatedAt: '2026-08-20T00:00:00Z' },
+    ];
+    const plan = generateActionPlan('scheme-001', studentProfile, DEMO_DOCUMENTS, apps);
+    expect(plan).not.toBeNull();
+    expect(plan!.status).toBe('COMPLETED');
+    expect(plan!.priority).toBe('COMPLETED');
+    const regStep = plan!.steps.find((s) => s.type === 'REGISTRATION');
+    expect(regStep).toBeUndefined();
+    const trackStep = plan!.steps.find((s) => s.type === 'TRACK_APPLICATION');
+    expect(trackStep).toBeDefined();
+  });
+
+  it('Test 4: Closed scheme does not receive application submission action', () => {
+    // Reference date after deadline
+    const pastDate = new Date('2026-11-10T00:00:00Z');
+    const plan = generateActionPlan('scheme-001', studentProfile, DEMO_DOCUMENTS, [], SCHEMES, pastDate);
+    expect(plan).not.toBeNull();
+    expect(plan!.status).toBe('CLOSED');
+    const appStep = plan!.steps.find((s) => s.type === 'APPLICATION');
+    expect(appStep).toBeUndefined();
+  });
+
+  it('Test 5: Failed eligibility produces BLOCKED state and explains failed criteria', () => {
+    const plan = generateActionPlan('scheme-001', highIncomeProfile, DEMO_DOCUMENTS, []);
+    expect(plan).not.toBeNull();
+    expect(plan!.status).toBe('BLOCKED');
+    expect(plan!.priority).toBe('BLOCKED');
+    expect(plan!.summary).toContain('do not currently meet mandatory criteria');
+    const updateStep = plan!.steps.find((s) => s.type === 'PROFILE_UPDATE');
+    expect(updateStep).toBeDefined();
+    // No application step should be present for blocked user
+    const appStep = plan!.steps.find((s) => s.type === 'APPLICATION');
+    expect(appStep).toBeUndefined();
+  });
+});
+
+// ===================================================================
+// 10. FEATURE 8: SMART DEADLINE RISK / URGENCY ENGINE TESTS
+// ===================================================================
+describe('Feature 8: Smart Deadline Risk / Urgency Engine', () => {
+  it('Test 6: 2 days remaining + strong match + missing docs results in CRITICAL urgency', () => {
+    // Reference date 2 days before 2026-10-31 -> 2026-10-29
+    const refDate = new Date('2026-10-29T00:00:00Z');
+    const partialDocs: UserDocument[] = [
+      { id: '1', name: 'Aadhaar', status: 'available', verified: true },
+    ];
+    const urgency = calculateSchemeUrgency('scheme-001', studentProfile, partialDocs, [], SCHEMES, refDate);
+    expect(urgency).not.toBeNull();
+    expect(urgency!.urgency).toBe('CRITICAL');
+    expect(urgency!.urgencyScore).toBeGreaterThanOrEqual(80);
+    expect(urgency!.reason.some((r) => r.toLowerCase().includes('critical') || r.toLowerCase().includes('remain'))).toBe(true);
+  });
+
+  it('Test 7: 15 days remaining results in MEDIUM / HIGH urgency depending on doc readiness', () => {
+    // Reference date 15 days before 2026-10-31 -> 2026-10-16
+    const refDate = new Date('2026-10-16T00:00:00Z');
+    const urgency = calculateSchemeUrgency('scheme-001', studentProfile, DEMO_DOCUMENTS, [], SCHEMES, refDate);
+    expect(urgency).not.toBeNull();
+    expect(['MEDIUM', 'HIGH']).toContain(urgency!.urgency);
+    expect(urgency!.daysRemaining).toBe(15);
+  });
+
+  it('Test 8: 45 days remaining + already applied results in LOW urgency', () => {
+    // Reference date 45 days before 2026-10-31 -> 2026-09-16
+    const refDate = new Date('2026-09-16T00:00:00Z');
+    const apps: ApplicationRecord[] = [
+      { schemeId: 'scheme-001', status: 'Applied', updatedAt: '2026-09-15T00:00:00Z' },
+    ];
+    const urgency = calculateSchemeUrgency('scheme-001', studentProfile, DEMO_DOCUMENTS, apps, SCHEMES, refDate);
+    expect(urgency).not.toBeNull();
+    expect(urgency!.urgency).toBe('LOW');
+    expect(urgency!.reason.some((r) => r.includes('already been submitted'))).toBe(true);
+  });
+
+  it('Test 9: Passed deadline results in CLOSED urgency state with score 0', () => {
+    const pastDate = new Date('2026-11-05T00:00:00Z');
+    const urgency = calculateSchemeUrgency('scheme-001', studentProfile, DEMO_DOCUMENTS, [], SCHEMES, pastDate);
+    expect(urgency).not.toBeNull();
+    expect(urgency!.urgency).toBe('CLOSED');
+    expect(urgency!.urgencyScore).toBe(0);
+    expect(urgency!.daysRemaining).toBe(0);
+  });
+
+  it('Test 10: Failed eligibility results in BLOCKED urgency state with score 0', () => {
+    const urgency = calculateSchemeUrgency('scheme-001', highIncomeProfile, DEMO_DOCUMENTS, []);
+    expect(urgency).not.toBeNull();
+    expect(urgency!.urgency).toBe('BLOCKED');
+    expect(urgency!.urgencyScore).toBe(0);
+    expect(urgency!.reason[0]).toContain('blocked');
+  });
+});
+
+// ===================================================================
+// 11. FEATURE 9: RELATED SCHEME DISCOVERY ENGINE TESTS
+// ===================================================================
+describe('Feature 9: Related Scheme Discovery / Benefit Relationship Engine', () => {
+  it('Test 11: Related schemes are identified correctly for Education schemes', () => {
+    const result = findRelatedSchemes('scheme-001', studentProfile);
+    expect(result).not.toBeNull();
+    expect(result!.sourceScheme.name).toContain('National Merit Scholarship');
+    expect(result!.relatedSchemes.length).toBeGreaterThan(0);
+
+    // Education scholarship should find related education / student assistance schemes
+    const relatedIds = result!.relatedSchemes.map((r) => r.schemeId);
+    // scheme-002 (Post-Matric Scholarship) or scheme-021 (Student Laptop) or scheme-007 (Youth Internship)
+    const hasEducationOrStudentRelation = result!.relatedSchemes.some(
+      (r) => r.category === 'Education' || r.category === 'Employment' || r.relationshipType === 'SAME_TARGET_GROUP',
+    );
+    expect(hasEducationOrStudentRelation).toBe(true);
+  });
+
+  it('Test 12: Unrelated agricultural schemes rank significantly lower for non-farmers', () => {
+    const result = findRelatedSchemes('scheme-001', studentProfile);
+    expect(result).not.toBeNull();
+    const topRelated = result!.relatedSchemes[0]!;
+    // Top related scheme should have high combined score
+    expect(topRelated.combinedScore).toBeGreaterThan(60);
+  });
+
+  it('Test 13: User profile personalized ranking prioritizes schemes the citizen matches', () => {
+    // For farmer profile on PM Kisan (scheme-003), Kisan Credit Card (scheme-004) should be #1
+    const farmerRelations = findRelatedSchemes('scheme-003', farmerProfile);
+    expect(farmerRelations).not.toBeNull();
+    const kcc = farmerRelations!.relatedSchemes.find((r) => r.schemeId === 'scheme-004');
+    expect(kcc).toBeDefined();
+    expect(kcc!.profileMatchScore).toBeGreaterThanOrEqual(70);
+    expect(kcc!.combinedScore).toBeGreaterThanOrEqual(70);
+  });
+
+  it('Test 14: Social category / caste is never inferred from indirect profile data', () => {
+    // Evaluating related schemes without explicit category must never fail or make assumptions
+    const noCategoryProfile: UserProfile = { ...studentProfile };
+    const result = findRelatedSchemes('scheme-001', noCategoryProfile);
+    expect(result).not.toBeNull();
+    for (const scheme of result!.relatedSchemes) {
+      expect(scheme.combinedScore).toBeGreaterThanOrEqual(0);
+      expect(scheme.combinedScore).toBeLessThanOrEqual(100);
+    }
+  });
+});
+

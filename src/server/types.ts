@@ -227,6 +227,62 @@ export const ApplicationStatusRequestSchema = z.object({
 
 export type ApplicationStatusRequest = z.infer<typeof ApplicationStatusRequestSchema>;
 
+// ===== Feature 7: Personalized Action Plan Request Schema =====
+
+export const ActionPlanRequestSchema = z.object({
+  schemeId: z.string().min(1),
+  profile: ProfileSchema,
+  documents: z.array(z.object({
+    id: z.string(),
+    name: z.string(),
+    status: z.enum(['available', 'missing', 'needs-verification', 'expired']),
+    verified: z.boolean(),
+    fileName: z.string().optional(),
+    uploadedAt: z.string().optional(),
+    expiresAt: z.string().optional(),
+  })).optional().default([]),
+  applications: z.array(z.object({
+    schemeId: z.string(),
+    status: z.enum(['Saved', 'Preparing', 'Ready to Apply', 'Applied', 'Under Review', 'Completed']),
+    updatedAt: z.string(),
+  })).optional().default([]),
+});
+
+export type ActionPlanRequest = z.infer<typeof ActionPlanRequestSchema>;
+
+// ===== Feature 8: Smart Deadline Risk / Urgency Request Schema =====
+
+export const UrgencyRequestSchema = z.object({
+  schemeId: z.string().min(1),
+  profile: ProfileSchema,
+  documents: z.array(z.object({
+    id: z.string(),
+    name: z.string(),
+    status: z.enum(['available', 'missing', 'needs-verification', 'expired']),
+    verified: z.boolean(),
+    fileName: z.string().optional(),
+    uploadedAt: z.string().optional(),
+    expiresAt: z.string().optional(),
+  })).optional().default([]),
+  applications: z.array(z.object({
+    schemeId: z.string(),
+    status: z.enum(['Saved', 'Preparing', 'Ready to Apply', 'Applied', 'Under Review', 'Completed']),
+    updatedAt: z.string(),
+  })).optional().default([]),
+});
+
+export type UrgencyRequest = z.infer<typeof UrgencyRequestSchema>;
+
+// ===== Feature 9: Related Schemes Request Schema =====
+
+export const RelatedSchemesRequestSchema = z.object({
+  schemeId: z.string().min(1),
+  profile: ProfileSchema.optional(),
+  limit: z.number().min(1).max(20).optional().default(6),
+});
+
+export type RelatedSchemesRequest = z.infer<typeof RelatedSchemesRequestSchema>;
+
 // ===== Unified Scheme Intelligence =====
 
 export const SchemeIntelligenceRequestSchema = z.object({
@@ -264,5 +320,15 @@ export type {
   ApplicationStatusResult,
   DeadlineResult,
   ApplicationStatusAndDeadlineResult,
+  ActionType,
+  ActionPlanPriority,
+  ActionStep,
+  ActionPlanResult,
+  UrgencyLevel,
+  SchemeUrgencyResult,
+  SchemeRelationshipType,
+  RelatedSchemeItem,
+  RelatedSchemesResult,
   SchemeIntelligenceResult,
 } from '@/lib/types';
+

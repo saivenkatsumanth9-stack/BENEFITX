@@ -7,21 +7,30 @@ import { computeProfileMatchWithBreakdown } from '@/lib/matching';
 import { evaluateEligibilityEnhanced } from '../services/eligibilityEngine';
 import { calculateDocumentReadinessEnhanced } from '../services/documentReadinessEngine';
 import { getApplicationStatus, getDeadlineStatus } from '../services/applicationStatusEngine';
+import { generateActionPlan } from '../services/actionPlanEngine';
+import { calculateSchemeUrgency } from '../services/urgencyEngine';
+import { findRelatedSchemes } from '../services/relatedSchemeEngine';
 import { SCHEMES } from '@/data/schemes';
 import type { UserProfile, UserDocument, ApplicationRecord } from '@/lib/types';
 
 /**
  * Unified Scheme Intelligence API
  *
- * Returns complete intelligence for a single scheme: match score,
- * eligibility assessment, document readiness, application status,
- * deadline tracking, and recommended action — all in one response.
+ * Returns complete intelligence for a single scheme:
+ * - Dynamic Profile Match Score + Breakdown
+ * - Explainable Eligibility Status
+ * - Smart Document Readiness Assessment
+ * - Application Status & Pipeline Tracking
+ * - Real-Time Deadline Status
+ * - Multi-Factor Application Urgency & Deadline Risk Score
+ * - Context-Aware Personalized Action Plan
+ * - Ranked Related Schemes
  */
 export const getSchemeIntelligence = createServerFn({ method: 'POST' })
   .validator((input: unknown) => {
     const parsed = SchemeIntelligenceRequestSchema.safeParse(input);
     if (!parsed.success) {
-      throw new Error(`Invalid request: ${parsed.error.issues.map(i => i.message).join(', ')}`);
+      throw new Error(`Invalid request: ${parsed.error.issues.map((i) => i.message).join(', ')}`);
     }
     return parsed.data;
   })
@@ -31,7 +40,7 @@ export const getSchemeIntelligence = createServerFn({ method: 'POST' })
 
       const { schemeId, profile, documents, applications } = data;
 
-      const scheme = SCHEMES.find(s => s.id === schemeId);
+      const scheme = SCHEMES.find((s) => s.id === schemeId);
       if (!scheme) {
         return createErrorResponse(
           'SCHEME_NOT_FOUND',
@@ -43,29 +52,55 @@ export const getSchemeIntelligence = createServerFn({ method: 'POST' })
       const userDocuments = (documents ?? []) as unknown as UserDocument[];
       const userApplications = (applications ?? []) as unknown as ApplicationRecord[];
 
-      // 1. Dynamic Profile Match Score
+      // 1. Dynamic Profile Match Score with Criteria Breakdown
       const match = computeProfileMatchWithBreakdown(userProfile, scheme, userDocuments);
 
-      // 2. Enhanced Eligibility
+      // 2. Explainable Eligibility Engine
       const eligibility = evaluateEligibilityEnhanced(userProfile, schemeId);
 
-      // 3. Enhanced Document Readiness
+      // 3. Smart Document Readiness Engine
       const docReadiness = calculateDocumentReadinessEnhanced(userDocuments, schemeId);
 
-      // 4. Application Status
+      // 4. Application Status Engine
       const appStatus = getApplicationStatus(schemeId, userApplications);
 
-      // 5. Deadline
+      // 5. Deadline Tracker Engine
       const deadline = getDeadlineStatus(schemeId);
 
-      if (!eligibility || !docReadiness || !appStatus || !deadline) {
+      // 6. Smart Deadline Risk / Urgency Engine
+      const urgency = calculateSchemeUrgency(
+        schemeId,
+        userProfile,
+        userDocuments,
+        userApplications,
+        SCHEMES,
+      );
+
+      // 7. Personalized Action Plan Engine
+      const actionPlan = generateActionPlan(
+        schemeId,
+        userProfile,
+        userDocuments,
+        userApplications,
+        SCHEMES,
+      );
+
+      // 8. Related Scheme Discovery Engine
+      const relatedResult = findRelatedSchemes(
+        schemeId,
+        userProfile,
+        SCHEMES,
+        4,
+      );
+
+      if (!eligibility || !docReadiness || !appStatus || !deadline || !urgency || !actionPlan || !relatedResult) {
         return createErrorResponse(
           'INTELLIGENCE_ERROR',
           'Failed to compute one or more intelligence components',
         );
       }
 
-      // 6. Determine recommended action
+      // 9. Recommended Action Summary
       const action = determineAction(
         eligibility.status,
         docReadiness.readinessScore,
@@ -85,6 +120,9 @@ export const getSchemeIntelligence = createServerFn({ method: 'POST' })
         documents: docReadiness,
         application: appStatus,
         deadline,
+        urgency,
+        actionPlan,
+        relatedSchemes: relatedResult.relatedSchemes,
         action,
       };
 

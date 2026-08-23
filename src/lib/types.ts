@@ -421,6 +421,101 @@ export interface ApplicationStatusAndDeadlineResult {
   deadline: DeadlineResult;
 }
 
+// ===== Feature 7: Personalized Action Plan Engine =====
+
+export type ActionType =
+  | "PROFILE_UPDATE"
+  | "DOCUMENT"
+  | "REGISTRATION"
+  | "APPLICATION"
+  | "DOCUMENT_RENEWAL"
+  | "VERIFY_INFORMATION"
+  | "TRACK_APPLICATION"
+  | "DEADLINE_WARNING"
+  | "INFORMATION";
+
+export type ActionPlanPriority =
+  | "CRITICAL"
+  | "HIGH"
+  | "MEDIUM"
+  | "LOW"
+  | "COMPLETED"
+  | "BLOCKED";
+
+export interface ActionStep {
+  order: number;
+  type: ActionType;
+  action: string;
+  reason: string;
+  priority: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
+  field?: string | undefined;
+  documentName?: string | undefined;
+}
+
+export interface ActionPlanResult {
+  schemeId: string;
+  schemeName: string;
+  priority: ActionPlanPriority;
+  status: "ACTION_REQUIRED" | "ALL_SET" | "COMPLETED" | "BLOCKED" | "CLOSED";
+  summary: string;
+  steps: ActionStep[];
+  totalSteps: number;
+}
+
+// ===== Feature 8: Smart Deadline Risk / Urgency Engine =====
+
+export type UrgencyLevel =
+  | "CRITICAL"
+  | "HIGH"
+  | "MEDIUM"
+  | "LOW"
+  | "NONE"
+  | "CLOSED"
+  | "BLOCKED";
+
+export interface SchemeUrgencyResult {
+  schemeId: string;
+  schemeName: string;
+  urgency: UrgencyLevel;
+  daysRemaining: number;
+  deadlineDate: string | null;
+  deadlineStatus: DeadlineStatus;
+  urgencyScore: number; // 0 - 100 Application Urgency / Deadline Risk Score
+  reason: string[];
+}
+
+// ===== Feature 9: Related Scheme Discovery / Benefit Relationship Engine =====
+
+export type SchemeRelationshipType =
+  | "SIMILAR_ELIGIBILITY"
+  | "SAME_TARGET_GROUP"
+  | "SAME_CATEGORY"
+  | "SAME_STATE"
+  | "RELATED_BENEFIT"
+  | "NEXT_STAGE_OPPORTUNITY"
+  | "COMPLEMENTARY_SCHEME";
+
+export interface RelatedSchemeItem {
+  schemeId: string;
+  schemeName: string;
+  category: string;
+  benefitSummary: string;
+  relationshipType: SchemeRelationshipType;
+  relationshipScore: number; // 0 - 100
+  profileMatchScore: number | null;
+  combinedScore: number; // weighted blend
+  reason: string;
+}
+
+export interface RelatedSchemesResult {
+  sourceScheme: {
+    id: string;
+    name: string;
+    category: string;
+  };
+  relatedSchemes: RelatedSchemeItem[];
+}
+
 // ===== Unified Scheme Intelligence =====
 
 export interface SchemeIntelligenceResult {
@@ -430,5 +525,9 @@ export interface SchemeIntelligenceResult {
   documents: EnhancedDocumentReadinessResult;
   application: ApplicationStatusResult;
   deadline: DeadlineResult;
+  urgency: SchemeUrgencyResult;
+  actionPlan: ActionPlanResult;
+  relatedSchemes: RelatedSchemeItem[];
   action: { required: boolean; message: string };
 }
+
