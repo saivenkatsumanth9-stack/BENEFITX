@@ -1,10 +1,9 @@
-<!-- LOVABLE:BEGIN -->
-> [!IMPORTANT]
-> This project is connected to [Lovable](https://lovable.dev). Avoid rewriting
-> published git history — force pushing, or rebasing/amending/squashing commits
-> that are already pushed — as it rewrites history on Lovable's side and the
-> user will likely lose their project history.
->
-> Commits you push to the connected branch sync back to Lovable and show up in
-> the editor, so keep the branch in a working state.
-<!-- LOVABLE:END -->
+# BENEFITX
+
+> **“Discover. Understand. Prepare. Apply.”**
+
+AI-powered Government Welfare Scheme Discovery, Explainable Eligibility Assessment, and Application Readiness Platform.
+
+- **Live Production:** https://benefit-navigator-main.vercel.app
+- **Admin Portal:** https://benefit-navigator-main.vercel.app/admin
+- **GitHub Repository:** https://github.com/saivenkatsumanth9-stack/BENEFITX
