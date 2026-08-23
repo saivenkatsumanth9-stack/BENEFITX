@@ -1,0 +1,40 @@
+{
+  "track": "TRACK 2 -- THE PREDICTION ENGINE (LAUNCHPADX-2026)",
+  "dataset": {
+    "source": "Structured Citizen Welfare Dataset (benefitx_citizen_schemes.csv)",
+    "records": 25000,
+    "features": 22,
+    "train_split": 20000,
+    "test_split": 5000
+  },
+  "classification_benchmark": {
+    "xgboost": {
+      "accuracy": 0.9984,
+      "precision": 0.9983031674208145,
+      "recall": 0.9994337485843715,
+      "f1": 0.9988681380871534,
+      "roc_auc": 0.9999837993464193
+    },
+    "random_forest": {
+      "accuracy": 0.9984,
+      "precision": 0.9977401129943503,
+      "recall": 1.0,
+      "f1": 0.998868778280543,
+      "roc_auc": 0.9998767593138328
+    },
+    "neural_network_mlp": {
+      "accuracy": 0.9968,
+      "precision": 0.9963297571993224,
+      "recall": 0.9991506228765572,
+      "f1": 0.9977381962114786,
+      "roc_auc": 0.9998200570263006
+    }
+  },
+  "regression_benchmark": {
+    "model": "XGBoost Regressor (Disbursed Grant Amount INR)",
+    "r2_score": 0.9980828762054443,
+    "rmse_inr": 5294.0947265625,
+    "mae_inr": 2139.27392578125
+  },
+  "best_model": "XGBoost Classifier + Regressor Pipeline"
+}
