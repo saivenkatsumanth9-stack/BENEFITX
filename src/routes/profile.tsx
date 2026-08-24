@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { User, Sparkles, CheckCircle2, RotateCcw, UserCheck, ShieldAlert, ArrowRight, ShieldCheck, ChevronRight } from "lucide-react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { User, CheckCircle2, UserCheck, ShieldCheck, ArrowRight, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 
 import { AppLayout } from "@/components/layout/AppLayout";
@@ -19,7 +19,6 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Progress } from "@/components/ui/progress";
 
 export const Route = createFileRoute("/profile")({
   component: CitizenProfilePage,
@@ -78,13 +77,13 @@ function CitizenProfilePage() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name.trim()) {
-      toast.error("Please provide your name.");
+      toast.error("Please enter your full name.");
       return;
     }
     try {
       await saveProfile(formData);
-      toast.success("Profile updated! Recommendations recalibrated.", {
-        description: "Your personalized matching signals have been refreshed.",
+      toast.success("Citizen profile updated successfully.", {
+        description: "Matching scores have been recalculated.",
       });
       navigate({ to: "/recommendations" });
     } catch {
@@ -94,120 +93,136 @@ function CitizenProfilePage() {
 
   return (
     <AppLayout>
-      <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-300">
+      <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in duration-200">
         {/* Page Header */}
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-border pb-5">
-          <div>
+          <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <span className="text-xs font-bold uppercase tracking-widest text-teal">Citizen Attributes</span>
+              <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                Citizen Attributes
+              </span>
+              <span className="text-muted-foreground text-xs">·</span>
+              <span className="text-xs font-semibold text-primary">
+                {profileCompleteness}% Complete
+              </span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-black text-foreground tracking-tight mt-1">
-              My Benefit Profile
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">
+              My Citizen Profile
             </h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Update your demographic, economic, and educational details to refine recommendation precision.
+            <p className="text-xs sm:text-sm text-muted-foreground">
+              Maintain your demographic, educational, and economic criteria to receive accurate welfare matches.
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2.5">
+          <div className="flex items-center gap-2">
             <Button
               variant="outline"
               size="sm"
               onClick={loadDemoProfile}
-              className="rounded-xl text-xs font-semibold gap-1.5 border-teal/30 bg-teal-soft/40 text-teal-foreground hover:bg-teal-soft"
+              className="h-8 rounded-lg text-xs font-semibold gap-1.5 border-border bg-card"
             >
-              <UserCheck className="size-3.5 text-teal" />
-              <span>Load Demo Preset</span>
+              <UserCheck className="size-3.5 text-primary" />
+              <span>Load Preset Profile</span>
             </Button>
           </div>
         </div>
 
-        {/* Profile Completeness Bar */}
-        <div className="surface-card p-5 space-y-3 shadow-sm border-primary/20 bg-primary-soft/10">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-bold text-foreground">Profile Completeness</span>
-            <span className="text-base font-extrabold text-primary tabular-nums">{profileCompleteness}%</span>
+        {/* Profile Completeness Card */}
+        <div className="surface-card p-4 space-y-2 bg-card border-border">
+          <div className="flex items-center justify-between text-xs">
+            <span className="font-semibold text-foreground">Profile Completeness Status</span>
+            <span className="font-bold text-primary tabular-nums">{profileCompleteness}%</span>
           </div>
-          <Progress value={profileCompleteness} className="h-2 rounded-full" />
-          <p className="text-xs text-muted-foreground">
-            Higher completeness enables BENEFITX to evaluate all eligibility rules with high confidence.
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+            <div
+              className="h-full rounded-full bg-primary transition-all duration-500"
+              style={{ width: `${profileCompleteness}%` }}
+            />
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            Complete all fields below for high-confidence eligibility matching against central and state rules.
           </p>
         </div>
 
         {/* Profile Form */}
-        <form onSubmit={handleSave} className="surface-card p-6 sm:p-8 space-y-6 shadow-sm">
+        <form onSubmit={handleSave} className="space-y-6">
           {/* Section 1: Demographics */}
-          <div className="space-y-4">
-            <h2 className="text-base font-bold text-foreground border-b border-border pb-2">
-              1. Basic Demographics
-            </h2>
-            <div className="grid sm:grid-cols-2 gap-4">
+          <div className="surface-card p-5 sm:p-6 space-y-4 bg-card">
+            <h3 className="text-sm font-bold text-foreground border-b border-border/80 pb-2">
+              1. Personal Information
+            </h3>
+
+            <div className="grid sm:grid-cols-2 gap-4 text-xs">
               <div className="space-y-1.5">
-                <Label htmlFor="prof-name" className="text-xs font-bold">
-                  Full Name *
-                </Label>
+                <Label htmlFor="name" className="text-xs font-semibold">Full Legal Name *</Label>
                 <Input
-                  id="prof-name"
+                  id="name"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   placeholder="e.g. Aarav Reddy"
-                  className="rounded-xl h-10"
+                  className="h-9 rounded-lg text-xs"
+                  required
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label htmlFor="prof-age" className="text-xs font-bold">
-                    Age (Years) *
-                  </Label>
-                  <Input
-                    id="prof-age"
-                    type="number"
-                    min={1}
-                    max={120}
-                    value={formData.age === null ? "" : formData.age}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        age: e.target.value ? Number(e.target.value) : null,
-                      })
-                    }
-                    className="rounded-xl h-10"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-bold">Gender</Label>
-                  <Select
-                    value={formData.gender || "Male"}
-                    onValueChange={(val) => setFormData({ ...formData, gender: val as Gender })}
-                  >
-                    <SelectTrigger className="rounded-xl h-10 text-xs">
-                      <SelectValue placeholder="Gender" />
-                    </SelectTrigger>
-                    <SelectContent className="rounded-xl">
-                      <SelectItem value="Male">Male</SelectItem>
-                      <SelectItem value="Female">Female</SelectItem>
-                      <SelectItem value="Other">Other</SelectItem>
-                      <SelectItem value="Prefer not to say">Prefer not to say</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
               <div className="space-y-1.5">
-                <Label className="text-xs font-bold">State / Union Territory *</Label>
+                <Label htmlFor="age" className="text-xs font-semibold">Age (Years) *</Label>
+                <Input
+                  id="age"
+                  type="number"
+                  min="0"
+                  max="120"
+                  value={formData.age === null ? "" : formData.age}
+                  onChange={(e) => setFormData({ ...formData, age: e.target.value ? Number(e.target.value) : null })}
+                  placeholder="e.g. 21"
+                  className="h-9 rounded-lg text-xs"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5 pt-1">
+              <Label className="text-xs font-semibold">Gender</Label>
+              <RadioGroup
+                value={formData.gender}
+                onValueChange={(val) => setFormData({ ...formData, gender: val as Gender })}
+                className="flex items-center gap-6 pt-1"
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="Male" id="male" />
+                  <Label htmlFor="male" className="text-xs font-normal cursor-pointer">Male</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="Female" id="female" />
+                  <Label htmlFor="female" className="text-xs font-normal cursor-pointer">Female</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="Transgender" id="trans" />
+                  <Label htmlFor="trans" className="text-xs font-normal cursor-pointer">Transgender</Label>
+                </div>
+              </RadioGroup>
+            </div>
+          </div>
+
+          {/* Section 2: Location */}
+          <div className="surface-card p-5 sm:p-6 space-y-4 bg-card">
+            <h3 className="text-sm font-bold text-foreground border-b border-border/80 pb-2">
+              2. Location & Domicile
+            </h3>
+
+            <div className="grid sm:grid-cols-3 gap-4 text-xs">
+              <div className="space-y-1.5">
+                <Label htmlFor="state" className="text-xs font-semibold">Domicile State *</Label>
                 <Select
-                  value={formData.state || "Telangana"}
+                  value={formData.state}
                   onValueChange={(val) => setFormData({ ...formData, state: val })}
                 >
-                  <SelectTrigger className="rounded-xl h-10 text-xs">
-                    <SelectValue placeholder="Select State" />
+                  <SelectTrigger className="h-9 rounded-lg text-xs">
+                    <SelectValue placeholder="Select state" />
                   </SelectTrigger>
-                  <SelectContent className="rounded-xl max-h-52">
-                    {STATES.map((s) => (
-                      <SelectItem key={s} value={s}>
-                        {s}
+                  <SelectContent>
+                    {STATES.map((st) => (
+                      <SelectItem key={st} value={st} className="text-xs">
+                        {st}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -215,225 +230,172 @@ function CitizenProfilePage() {
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="prof-district" className="text-xs font-bold">
-                  District
-                </Label>
+                <Label htmlFor="district" className="text-xs font-semibold">District</Label>
                 <Input
-                  id="prof-district"
+                  id="district"
                   value={formData.district}
                   onChange={(e) => setFormData({ ...formData, district: e.target.value })}
                   placeholder="e.g. Hyderabad"
-                  className="rounded-xl h-10"
+                  className="h-9 rounded-lg text-xs"
                 />
               </div>
 
-              <div className="space-y-1.5 sm:col-span-2">
-                <Label className="text-xs font-bold">Area Type</Label>
-                <RadioGroup
-                  value={formData.areaType || "Urban"}
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold">Area Type</Label>
+                <Select
+                  value={formData.areaType}
                   onValueChange={(val) => setFormData({ ...formData, areaType: val as AreaType })}
-                  className="grid grid-cols-2 gap-3"
                 >
-                  <div className="flex items-center space-x-2 border rounded-xl p-2.5 cursor-pointer">
-                    <RadioGroupItem value="Urban" id="p-urban" />
-                    <Label htmlFor="p-urban" className="text-xs font-semibold cursor-pointer">
-                      Urban (City / Municipality)
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2 border rounded-xl p-2.5 cursor-pointer">
-                    <RadioGroupItem value="Rural" id="p-rural" />
-                    <Label htmlFor="p-rural" className="text-xs font-semibold cursor-pointer">
-                      Rural (Gram Panchayat)
-                    </Label>
-                  </div>
-                </RadioGroup>
+                  <SelectTrigger className="h-9 rounded-lg text-xs">
+                    <SelectValue placeholder="Area type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Urban" className="text-xs">Urban / Metropolitan</SelectItem>
+                    <SelectItem value="Rural" className="text-xs">Rural / Village</SelectItem>
+                    <SelectItem value="Semi-Urban" className="text-xs">Semi-Urban / Town</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </div>
 
-          {/* Section 2: Education */}
-          <div className="space-y-4 pt-2">
-            <h2 className="text-base font-bold text-foreground border-b border-border pb-2">
-              2. Education & Academics
-            </h2>
-            <div className="grid sm:grid-cols-2 gap-4">
+          {/* Section 3: Education & Occupation */}
+          <div className="surface-card p-5 sm:p-6 space-y-4 bg-card">
+            <h3 className="text-sm font-bold text-foreground border-b border-border/80 pb-2">
+              3. Education, Employment & Income
+            </h3>
+
+            <div className="grid sm:grid-cols-2 gap-4 text-xs">
               <div className="space-y-1.5">
-                <Label className="text-xs font-bold">Education Level</Label>
+                <Label className="text-xs font-semibold">Highest Education Level</Label>
                 <Select
-                  value={formData.educationLevel || "Undergraduate"}
+                  value={formData.educationLevel}
                   onValueChange={(val) => setFormData({ ...formData, educationLevel: val as EducationLevel })}
                 >
-                  <SelectTrigger className="rounded-xl h-10 text-xs">
-                    <SelectValue placeholder="Education Level" />
+                  <SelectTrigger className="h-9 rounded-lg text-xs">
+                    <SelectValue placeholder="Select level" />
                   </SelectTrigger>
-                  <SelectContent className="rounded-xl">
-                    <SelectItem value="Below 10th">Below 10th</SelectItem>
-                    <SelectItem value="10th Pass">10th Pass</SelectItem>
-                    <SelectItem value="12th Pass">12th Pass</SelectItem>
-                    <SelectItem value="Undergraduate">Undergraduate</SelectItem>
-                    <SelectItem value="Graduate">Graduate</SelectItem>
-                    <SelectItem value="Postgraduate">Postgraduate</SelectItem>
+                  <SelectContent>
+                    <SelectItem value="Below 10th" className="text-xs">Below 10th</SelectItem>
+                    <SelectItem value="10th Pass" className="text-xs">10th Standard / Matriculation</SelectItem>
+                    <SelectItem value="12th Pass" className="text-xs">12th Standard / Intermediate</SelectItem>
+                    <SelectItem value="Diploma" className="text-xs">Diploma / ITI</SelectItem>
+                    <SelectItem value="Undergraduate" className="text-xs">Undergraduate Degree (B.Tech, B.Sc, BA, etc.)</SelectItem>
+                    <SelectItem value="Postgraduate" className="text-xs">Postgraduate Degree (M.Tech, M.Sc, etc.)</SelectItem>
+                    <SelectItem value="Doctorate" className="text-xs">Doctorate / Ph.D.</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="prof-course" className="text-xs font-bold">
-                  Course / Major
-                </Label>
+                <Label htmlFor="course" className="text-xs font-semibold">Current Course / Specialization</Label>
                 <Input
-                  id="prof-course"
+                  id="course"
                   value={formData.course}
                   onChange={(e) => setFormData({ ...formData, course: e.target.value })}
                   placeholder="e.g. B.Tech Computer Science"
-                  className="rounded-xl h-10"
+                  className="h-9 rounded-lg text-xs"
                 />
               </div>
 
-              <div className="sm:col-span-2 flex items-center justify-between rounded-xl border p-3 bg-muted/20">
-                <div>
-                  <Label htmlFor="p-student" className="text-xs font-bold">
-                    Currently Enrolled Student
-                  </Label>
-                  <p className="text-[11px] text-muted-foreground">
-                    Matches merit scholarships and laptop grants.
-                  </p>
-                </div>
-                <Switch
-                  id="p-student"
-                  checked={formData.isStudent}
-                  onCheckedChange={(checked) => setFormData({ ...formData, isStudent: checked })}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Section 3: Occupation & Income */}
-          <div className="space-y-4 pt-2">
-            <h2 className="text-base font-bold text-foreground border-b border-border pb-2">
-              3. Occupation & Economic Profile
-            </h2>
-            <div className="grid sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label className="text-xs font-bold">Primary Occupation</Label>
+                <Label className="text-xs font-semibold">Primary Occupation</Label>
                 <Select
-                  value={formData.occupation || "Student"}
-                  onValueChange={(val) =>
-                    setFormData({
-                      ...formData,
-                      occupation: val as Occupation,
-                      isFarmer: val === "Farmer",
-                    })
-                  }
+                  value={formData.occupation}
+                  onValueChange={(val) => setFormData({ ...formData, occupation: val as Occupation })}
                 >
-                  <SelectTrigger className="rounded-xl h-10 text-xs">
-                    <SelectValue placeholder="Select Occupation" />
+                  <SelectTrigger className="h-9 rounded-lg text-xs">
+                    <SelectValue placeholder="Select occupation" />
                   </SelectTrigger>
-                  <SelectContent className="rounded-xl">
-                    <SelectItem value="Student">Student</SelectItem>
-                    <SelectItem value="Farmer">Farmer</SelectItem>
-                    <SelectItem value="Salaried">Salaried</SelectItem>
-                    <SelectItem value="Self-employed">Self-employed</SelectItem>
-                    <SelectItem value="Daily wage worker">Daily wage worker</SelectItem>
-                    <SelectItem value="Unemployed">Unemployed</SelectItem>
-                    <SelectItem value="Homemaker">Homemaker</SelectItem>
-                    <SelectItem value="Retired">Retired</SelectItem>
+                  <SelectContent>
+                    <SelectItem value="Student" className="text-xs">Student / Scholar</SelectItem>
+                    <SelectItem value="Farmer" className="text-xs">Farmer / Cultivator</SelectItem>
+                    <SelectItem value="Salaried" className="text-xs">Salaried (Private / Public)</SelectItem>
+                    <SelectItem value="Self-Employed" className="text-xs">Self-Employed / Business Owner</SelectItem>
+                    <SelectItem value="Daily Wage" className="text-xs">Daily Wage / Informal Worker</SelectItem>
+                    <SelectItem value="Artisan" className="text-xs">Artisan / Traditional Craft</SelectItem>
+                    <SelectItem value="Unemployed" className="text-xs">Unemployed / Job Seeker</SelectItem>
+                    <SelectItem value="Retired" className="text-xs">Retired / Pensioner</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="space-y-1.5">
-                <Label className="text-xs font-bold">Annual Family Income</Label>
-                <Select
-                  value={String(formData.annualIncome ?? 250000)}
-                  onValueChange={(val) => setFormData({ ...formData, annualIncome: Number(val) })}
-                >
-                  <SelectTrigger className="rounded-xl h-10 text-xs">
-                    <SelectValue placeholder="Income Range" />
-                  </SelectTrigger>
-                  <SelectContent className="rounded-xl">
-                    <SelectItem value="100000">Below ₹1,00,000 / year (BPL)</SelectItem>
-                    <SelectItem value="250000">₹1,00,000 – ₹2,50,000 / year</SelectItem>
-                    <SelectItem value="500000">₹2,50,000 – ₹5,00,000 / year</SelectItem>
-                    <SelectItem value="800000">₹5,00,000 – ₹8,00,000 / year (EWS limit)</SelectItem>
-                    <SelectItem value="1500000">Above ₹8,00,000 / year</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="sm:col-span-2 flex items-center justify-between rounded-xl border p-3 bg-muted/20">
-                <div>
-                  <Label htmlFor="p-farmer" className="text-xs font-bold">
-                    Agricultural Landholding Family
-                  </Label>
-                  <p className="text-[11px] text-muted-foreground">
-                    Matches PM Kisan, Rythu Bandhu, and crop insurance benefits.
-                  </p>
-                </div>
-                <Switch
-                  id="p-farmer"
-                  checked={formData.isFarmer}
-                  onCheckedChange={(checked) => setFormData({ ...formData, isFarmer: checked })}
+                <Label htmlFor="income" className="text-xs font-semibold">Annual Family Income (₹ INR) *</Label>
+                <Input
+                  id="income"
+                  type="number"
+                  min="0"
+                  step="10000"
+                  value={formData.annualIncome === null ? "" : formData.annualIncome}
+                  onChange={(e) => setFormData({ ...formData, annualIncome: e.target.value ? Number(e.target.value) : null })}
+                  placeholder="e.g. 250000"
+                  className="h-9 rounded-lg text-xs"
                 />
               </div>
             </div>
           </div>
 
-          {/* Section 4: Special Categories */}
-          <div className="space-y-4 pt-2">
-            <h2 className="text-base font-bold text-foreground border-b border-border pb-2">
-              4. Special Categories
-            </h2>
+          {/* Section 4: Special Welfare Criteria */}
+          <div className="surface-card p-5 sm:p-6 space-y-4 bg-card">
+            <h3 className="text-sm font-bold text-foreground border-b border-border/80 pb-2">
+              4. Special Criteria & Social Attributes
+            </h3>
+
             <div className="space-y-3">
-              <div className="flex items-center justify-between rounded-xl border p-3 bg-muted/20">
-                <div>
-                  <Label htmlFor="p-pwd" className="text-xs font-bold">
-                    Person with Benchmark Disability (PwD)
-                  </Label>
-                  <p className="text-[11px] text-muted-foreground">
-                    Unlocks assistive aids and specialized pensions.
-                  </p>
+              <div className="flex items-center justify-between rounded-lg border border-border p-3">
+                <div className="space-y-0.5">
+                  <Label htmlFor="is-student" className="text-xs font-semibold cursor-pointer">Enrolled as Full-Time Student</Label>
+                  <p className="text-[11px] text-muted-foreground">Eligible for educational scholarships, stipends, and laptop grants.</p>
                 </div>
                 <Switch
-                  id="p-pwd"
-                  checked={formData.hasDisability}
-                  onCheckedChange={(checked) => setFormData({ ...formData, hasDisability: checked })}
+                  id="is-student"
+                  checked={formData.isStudent}
+                  onCheckedChange={(val) => setFormData({ ...formData, isStudent: val })}
                 />
               </div>
 
-              <div className="flex items-center justify-between rounded-xl border p-3 bg-muted/20">
-                <div>
-                  <Label htmlFor="p-senior" className="text-xs font-bold">
-                    Senior Citizen (60+ Years)
-                  </Label>
-                  <p className="text-[11px] text-muted-foreground">
-                    Unlocks old age security and pension schemes.
-                  </p>
+              <div className="flex items-center justify-between rounded-lg border border-border p-3">
+                <div className="space-y-0.5">
+                  <Label htmlFor="is-farmer" className="text-xs font-semibold cursor-pointer">Agricultural Landholder / Farmer</Label>
+                  <p className="text-[11px] text-muted-foreground">Eligible for PM-Kisan, crop insurance, and Kisan Credit Card schemes.</p>
                 </div>
                 <Switch
-                  id="p-senior"
-                  checked={formData.isSeniorCitizen || (formData.age !== null && formData.age >= 60)}
-                  onCheckedChange={(checked) => setFormData({ ...formData, isSeniorCitizen: checked })}
+                  id="is-farmer"
+                  checked={formData.isFarmer}
+                  onCheckedChange={(val) => setFormData({ ...formData, isFarmer: val })}
+                />
+              </div>
+
+              <div className="flex items-center justify-between rounded-lg border border-border p-3">
+                <div className="space-y-0.5">
+                  <Label htmlFor="has-disability" className="text-xs font-semibold cursor-pointer">Person with Benchmark Disability (PwD)</Label>
+                  <p className="text-[11px] text-muted-foreground">Eligible for assistive devices, special scholarships, and priority reservations.</p>
+                </div>
+                <Switch
+                  id="has-disability"
+                  checked={formData.hasDisability}
+                  onCheckedChange={(val) => setFormData({ ...formData, hasDisability: val })}
                 />
               </div>
             </div>
           </div>
 
-          {/* Save Action */}
-          <div className="pt-4 border-t border-border flex items-center justify-between">
+          {/* Save Action Footer */}
+          <div className="flex items-center justify-between gap-4 pt-2">
             <Button
               type="button"
               variant="ghost"
               onClick={resetAll}
-              className="text-xs font-semibold text-muted-foreground hover:text-destructive"
+              className="h-9 text-xs text-muted-foreground hover:text-destructive gap-1"
             >
-              <RotateCcw className="size-3.5 mr-1" />
+              <RotateCcw className="size-3.5" />
               <span>Reset Profile</span>
             </Button>
 
-            <Button type="submit" size="lg" className="rounded-xl font-bold gap-2 shadow-sm">
-              <Sparkles className="size-4" />
-              <span>Update Recommendations</span>
+            <Button type="submit" className="h-9 px-5 rounded-lg text-xs font-semibold bg-primary text-primary-foreground gap-1.5 shadow-sm">
+              <span>Save & Recalculate Matches</span>
+              <ArrowRight className="size-3.5" />
             </Button>
           </div>
         </form>

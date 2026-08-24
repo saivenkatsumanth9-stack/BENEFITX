@@ -5,13 +5,11 @@ import {
   Bell,
   Bookmark,
   User,
-  Sparkles,
   ShieldCheck,
   RotateCcw,
   CheckCircle2,
   Menu,
   LogIn,
-  LogOut,
   Users,
 } from "lucide-react";
 
@@ -42,47 +40,50 @@ export function TopBar({ onMenuClick }: TopBarProps) {
 
   return (
     <>
-      <header className="sticky top-0 z-20 flex h-16 w-full items-center justify-between border-b border-border bg-background/95 backdrop-blur px-4 sm:px-6">
-        {/* Left: Mobile Menu & Search Trigger */}
+      <header className="sticky top-0 z-20 flex h-14 w-full items-center justify-between border-b border-border bg-card/95 backdrop-blur px-4 sm:px-6">
+        {/* Left: Mobile Menu & Global Search Trigger */}
         <div className="flex items-center gap-3">
           <Button
             variant="ghost"
             size="icon"
             onClick={onMenuClick}
-            className="md:hidden size-9 rounded-xl"
+            className="md:hidden size-8 rounded-lg"
             aria-label="Toggle navigation menu"
           >
-            <Menu className="size-5" />
+            <Menu className="size-4" />
           </Button>
 
           {/* Quick Search Button */}
           <button
             onClick={() => setSearchOpen(true)}
-            className="flex items-center gap-2 rounded-xl border border-input bg-card px-3.5 py-2 text-sm text-muted-foreground shadow-xs hover:border-primary/50 hover:bg-accent/40 transition-colors w-48 sm:w-72 md:w-80"
+            className="flex items-center gap-2 rounded-lg border border-input bg-background px-3 py-1.5 text-xs text-muted-foreground shadow-xs hover:border-primary/40 hover:bg-muted/50 transition-colors w-48 sm:w-72 md:w-80"
           >
-            <Search className="size-4 text-muted-foreground shrink-0" />
-            <span className="truncate text-xs sm:text-sm font-medium">Search schemes, benefits, states...</span>
+            <Search className="size-3.5 text-muted-foreground shrink-0" />
+            <span className="truncate font-medium">Search schemes, benefits, eligibility...</span>
+            <kbd className="hidden sm:inline-block ml-auto pointer-events-none rounded border border-border bg-muted px-1.5 text-[10px] font-mono text-muted-foreground">
+              /
+            </kbd>
           </button>
         </div>
 
-        {/* Right: Quick actions & Profile */}
-        <div className="flex items-center gap-2 sm:gap-3">
+        {/* Right: Quick actions & Citizen Session */}
+        <div className="flex items-center gap-1.5 sm:gap-2">
           {/* Sign In / Switch Account Button */}
           <Button
             variant="outline"
             size="sm"
             onClick={() => setAuthModalOpen(true)}
-            className="rounded-xl text-xs font-bold gap-1.5 border-primary/30 bg-primary-soft/30 text-primary hover:bg-primary-soft"
+            className="h-8 rounded-lg text-xs font-semibold gap-1.5 border-border bg-background hover:bg-muted"
           >
             {profile ? (
               <>
-                <Users className="size-3.5" />
-                <span className="hidden sm:inline">Switch Account</span>
+                <Users className="size-3 text-muted-foreground" />
+                <span className="hidden sm:inline">Switch Citizen</span>
               </>
             ) : (
               <>
-                <LogIn className="size-3.5" />
-                <span>Sign In / Demo</span>
+                <LogIn className="size-3 text-primary" />
+                <span>Sign In</span>
               </>
             )}
           </Button>
@@ -92,13 +93,13 @@ export function TopBar({ onMenuClick }: TopBarProps) {
             variant="ghost"
             size="icon"
             asChild
-            className="relative size-9 rounded-xl hover:bg-muted"
+            className="relative size-8 rounded-lg text-muted-foreground hover:text-foreground"
             aria-label="Saved schemes"
           >
             <Link to="/saved">
-              <Bookmark className="size-4 text-foreground" />
+              <Bookmark className="size-4" />
               {savedIds.length > 0 && (
-                <span className="absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+                <span className="absolute 1 top-1 right-1 flex size-3.5 items-center justify-center rounded-full bg-primary text-[9px] font-bold text-primary-foreground">
                   {savedIds.length}
                 </span>
               )}
@@ -110,18 +111,20 @@ export function TopBar({ onMenuClick }: TopBarProps) {
             variant="ghost"
             size="icon"
             asChild
-            className="relative size-9 rounded-xl hover:bg-muted"
+            className="relative size-8 rounded-lg text-muted-foreground hover:text-foreground"
             aria-label="Notifications"
           >
             <Link to="/notifications">
-              <Bell className="size-4 text-foreground" />
+              <Bell className="size-4" />
               {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">
+                <span className="absolute top-1 right-1 flex size-3.5 items-center justify-center rounded-full bg-destructive text-[9px] font-bold text-destructive-foreground">
                   {unreadCount}
                 </span>
               )}
             </Link>
           </Button>
+
+          <div className="h-4 w-px bg-border mx-1" />
 
           {/* Profile Dropdown */}
           <DropdownMenu>
@@ -129,48 +132,45 @@ export function TopBar({ onMenuClick }: TopBarProps) {
               <Button
                 variant="ghost"
                 size="sm"
-                className="flex items-center gap-2 rounded-xl p-1.5 sm:px-2.5 sm:py-1.5 hover:bg-muted"
+                className="h-8 flex items-center gap-2 rounded-lg p-1 sm:px-2 hover:bg-muted"
               >
-                <div className="flex size-7 items-center justify-center rounded-lg bg-primary font-bold text-xs text-primary-foreground shadow-xs">
-                  {profile?.name ? profile.name.charAt(0).toUpperCase() : "U"}
+                <div className="flex size-6 items-center justify-center rounded-full bg-primary font-bold text-[11px] text-primary-foreground">
+                  {profile?.name ? profile.name.charAt(0).toUpperCase() : "C"}
                 </div>
                 <div className="hidden text-left sm:block">
-                  <p className="text-xs font-bold leading-none text-foreground line-clamp-1">
+                  <p className="text-xs font-semibold leading-none text-foreground line-clamp-1">
                     {profile ? profile.name : "Guest Citizen"}
-                  </p>
-                  <p className="text-[10px] font-medium text-muted-foreground mt-0.5">
-                    {profile?.occupation || "Sign In to Access"}
                   </p>
                 </div>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56 rounded-xl p-1.5 shadow-lg">
-              <DropdownMenuLabel className="px-2.5 py-2">
+            <DropdownMenuContent align="end" className="w-56 rounded-lg p-1.5 shadow-md">
+              <DropdownMenuLabel className="px-2.5 py-1.5">
                 <p className="text-xs font-bold text-foreground">{profile?.name || "Guest Citizen"}</p>
                 <p className="text-[11px] font-normal text-muted-foreground truncate">
-                  {profile?.state ? `${profile.district ? `${profile.district}, ` : ""}${profile.state}` : "No active session"}
+                  {profile?.state ? `${profile.district ? `${profile.district}, ` : ""}${profile.state}` : "No verified location"}
                 </p>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => navigate({ to: "/profile" })} className="rounded-lg cursor-pointer">
-                <User className="size-4 mr-2 text-muted-foreground" />
+              <DropdownMenuItem onClick={() => navigate({ to: "/profile" })} className="rounded-md cursor-pointer text-xs">
+                <User className="size-3.5 mr-2 text-muted-foreground" />
                 <span>My Citizen Profile</span>
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => navigate({ to: "/readiness" })} className="rounded-lg cursor-pointer">
-                <CheckCircle2 className="size-4 mr-2 text-teal" />
+              <DropdownMenuItem onClick={() => navigate({ to: "/readiness" })} className="rounded-md cursor-pointer text-xs">
+                <CheckCircle2 className="size-3.5 mr-2 text-success" />
                 <span>Application Readiness</span>
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => navigate({ to: "/settings" })} className="rounded-lg cursor-pointer">
-                <ShieldCheck className="size-4 mr-2 text-muted-foreground" />
-                <span>Settings & Preferences</span>
+              <DropdownMenuItem onClick={() => navigate({ to: "/settings" })} className="rounded-md cursor-pointer text-xs">
+                <ShieldCheck className="size-3.5 mr-2 text-muted-foreground" />
+                <span>Preferences & Privacy</span>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => setAuthModalOpen(true)} className="rounded-lg cursor-pointer text-primary font-bold">
-                <LogIn className="size-4 mr-2" />
+              <DropdownMenuItem onClick={() => setAuthModalOpen(true)} className="rounded-md cursor-pointer text-xs text-primary font-semibold">
+                <LogIn className="size-3.5 mr-2" />
                 <span>{profile ? "Switch Citizen Account" : "Sign In with Credentials"}</span>
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={resetAll} className="rounded-lg cursor-pointer text-destructive font-semibold">
-                <RotateCcw className="size-4 mr-2" />
+              <DropdownMenuItem onClick={resetAll} className="rounded-md cursor-pointer text-xs text-destructive font-medium">
+                <RotateCcw className="size-3.5 mr-2" />
                 <span>Log Out / Reset Data</span>
               </DropdownMenuItem>
             </DropdownMenuContent>

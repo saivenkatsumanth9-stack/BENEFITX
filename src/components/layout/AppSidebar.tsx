@@ -1,7 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
   LayoutDashboard,
-  Sparkles,
   Compass,
   FileCheck2,
   PieChart,
@@ -14,7 +13,7 @@ import {
   ShieldCheck,
   UserCheck,
   RotateCcw,
-  ExternalLink,
+  Sparkles,
 } from "lucide-react";
 
 import { useAppStore } from "@/state/app-store";
@@ -26,10 +25,10 @@ interface NavItem {
   to: string;
   icon: React.ElementType;
   badge: string | null;
-  badgeColor?: string;
+  badgeColor?: string | undefined;
 }
 
-const NAV_ITEMS: NavItem[] = [
+const PRIMARY_NAV_ITEMS: NavItem[] = [
   {
     label: "Dashboard",
     to: "/dashboard",
@@ -37,17 +36,31 @@ const NAV_ITEMS: NavItem[] = [
     badge: null,
   },
   {
-    label: "AI Recommendations",
+    label: "Recommended Schemes",
     to: "/recommendations",
     icon: Sparkles,
-    badge: "AI",
-    badgeColor: "bg-teal-soft text-teal",
+    badge: "recsCount",
   },
   {
-    label: "Explore Schemes",
+    label: "Scheme Directory",
     to: "/schemes",
     icon: Compass,
     badge: "22",
+  },
+  {
+    label: "Application Readiness",
+    to: "/readiness",
+    icon: PieChart,
+    badge: null,
+  },
+];
+
+const CITIZEN_TOOL_ITEMS: NavItem[] = [
+  {
+    label: "My Applications",
+    to: "/applications",
+    icon: SendHorizontal,
+    badge: "appsCount",
   },
   {
     label: "Document Locker",
@@ -56,22 +69,10 @@ const NAV_ITEMS: NavItem[] = [
     badge: null,
   },
   {
-    label: "Application Readiness",
-    to: "/readiness",
-    icon: PieChart,
-    badge: null,
-  },
-  {
     label: "Saved Schemes",
     to: "/saved",
     icon: Bookmark,
     badge: "savedCount",
-  },
-  {
-    label: "My Applications",
-    to: "/applications",
-    icon: SendHorizontal,
-    badge: "appsCount",
   },
   {
     label: "Notifications",
@@ -83,7 +84,7 @@ const NAV_ITEMS: NavItem[] = [
 ];
 
 const SECONDARY_NAV = [
-  { label: "My Profile", to: "/profile", icon: User },
+  { label: "Citizen Profile", to: "/profile", icon: User },
   { label: "Settings", to: "/settings", icon: Settings },
   { label: "Help & Support", to: "/help", icon: HelpCircle },
 ] as const;
@@ -100,26 +101,27 @@ export function AppSidebar() {
     if (type === "savedCount") return savedIds.length > 0 ? savedIds.length : null;
     if (type === "appsCount") return applications.length > 0 ? applications.length : null;
     if (type === "unreadCount") return unreadCount > 0 ? unreadCount : null;
+    if (type === "recsCount") return "Matched";
     return type;
   };
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-border bg-sidebar md:flex">
+    <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-border bg-sidebar md:flex select-none">
       {/* Brand Header */}
       <div className="flex h-16 items-center justify-between border-b border-border px-5">
         <Link to="/" className="flex items-center gap-2.5 group">
-          <img
-            src="/logo.png"
-            alt="BENEFITX Logo"
-            className="size-9 rounded-xl object-contain shadow-sm group-hover:scale-105 transition-transform"
-          />
+          <div className="size-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold text-sm shadow-xs">
+            BX
+          </div>
           <div>
             <div className="flex items-center gap-1.5">
-              <span className="font-extrabold tracking-tight text-foreground text-lg">BENEFITX</span>
-              <span className="rounded bg-teal-soft px-1.5 py-0.2 text-[10px] font-bold text-teal">GOV-AI</span>
+              <span className="font-bold tracking-tight text-foreground text-base">BENEFITX</span>
+              <span className="rounded bg-primary-soft px-1.5 py-0.2 text-[9px] font-semibold text-primary">
+                CIVIC
+              </span>
             </div>
-            <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest leading-none">
-              Citizen Gateway
+            <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider leading-none mt-0.5">
+              Welfare Gateway
             </p>
           </div>
         </Link>
@@ -127,13 +129,13 @@ export function AppSidebar() {
 
       {/* Main Navigation Scroll Area */}
       <div className="flex-1 overflow-y-auto px-3 py-4 space-y-6">
-        {/* Main Section */}
+        {/* Section 1: Discovery */}
         <div>
-          <p className="px-3 pb-2 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-            Discovery & Readiness
+          <p className="px-3 pb-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+            Discovery & Matching
           </p>
-          <nav className="space-y-1">
-            {NAV_ITEMS.map((item) => {
+          <nav className="space-y-0.5">
+            {PRIMARY_NAV_ITEMS.map((item) => {
               const Icon = item.icon;
               const isActive =
                 item.to === "/dashboard"
@@ -146,20 +148,20 @@ export function AppSidebar() {
                   key={item.to}
                   to={item.to}
                   className={cn(
-                    "flex items-center justify-between rounded-xl px-3 py-2 text-sm font-semibold transition-all group",
+                    "flex items-center justify-between rounded-lg px-3 py-2 text-xs font-semibold transition-colors",
                     isActive
-                      ? "bg-primary text-primary-foreground shadow-sm"
+                      ? "bg-primary text-primary-foreground shadow-xs font-bold"
                       : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                   )}
                 >
-                  <div className="flex items-center gap-3">
-                    <Icon className={cn("size-4 shrink-0 transition-transform group-hover:scale-110", isActive ? "text-primary-foreground" : "text-muted-foreground")} />
+                  <div className="flex items-center gap-2.5">
+                    <Icon className={cn("size-4 shrink-0", isActive ? "text-primary-foreground" : "text-muted-foreground")} />
                     <span>{item.label}</span>
                   </div>
                   {badgeVal ? (
                     <span
                       className={cn(
-                        "rounded-full px-2 py-0.5 text-[11px] font-bold tabular-nums",
+                        "rounded px-1.5 py-0.5 text-[10px] font-semibold tabular-nums",
                         isActive
                           ? "bg-primary-foreground/20 text-primary-foreground"
                           : item.badgeColor || "bg-muted text-muted-foreground"
@@ -174,12 +176,56 @@ export function AppSidebar() {
           </nav>
         </div>
 
-        {/* Secondary Account Section */}
+        {/* Section 2: Citizen Management */}
         <div>
-          <p className="px-3 pb-2 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+          <p className="px-3 pb-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+            Citizen Management
+          </p>
+          <nav className="space-y-0.5">
+            {CITIZEN_TOOL_ITEMS.map((item) => {
+              const Icon = item.icon;
+              const isActive = currentPath.startsWith(item.to);
+              const badgeVal = getBadgeValue(item.badge);
+
+              return (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  className={cn(
+                    "flex items-center justify-between rounded-lg px-3 py-2 text-xs font-semibold transition-colors",
+                    isActive
+                      ? "bg-primary text-primary-foreground shadow-xs font-bold"
+                      : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                  )}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Icon className={cn("size-4 shrink-0", isActive ? "text-primary-foreground" : "text-muted-foreground")} />
+                    <span>{item.label}</span>
+                  </div>
+                  {badgeVal ? (
+                    <span
+                      className={cn(
+                        "rounded px-1.5 py-0.5 text-[10px] font-semibold tabular-nums",
+                        isActive
+                          ? "bg-primary-foreground/20 text-primary-foreground"
+                          : item.badgeColor || "bg-muted text-muted-foreground"
+                      )}
+                    >
+                      {badgeVal}
+                    </span>
+                  ) : null}
+                </Link>
+              );
+            })}
+          </nav>
+        </div>
+
+        {/* Section 3: Account & Support */}
+        <div>
+          <p className="px-3 pb-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
             Account & Support
           </p>
-          <nav className="space-y-1">
+          <nav className="space-y-0.5">
             {SECONDARY_NAV.map((item) => {
               const Icon = item.icon;
               const isActive = currentPath === item.to;
@@ -188,13 +234,13 @@ export function AppSidebar() {
                   key={item.to}
                   to={item.to}
                   className={cn(
-                    "flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-semibold transition-all group",
+                    "flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-semibold transition-colors",
                     isActive
-                      ? "bg-primary text-primary-foreground shadow-sm"
+                      ? "bg-primary text-primary-foreground shadow-xs font-bold"
                       : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                   )}
                 >
-                  <Icon className={cn("size-4 shrink-0 transition-transform group-hover:scale-110", isActive ? "text-primary-foreground" : "text-muted-foreground")} />
+                  <Icon className={cn("size-4 shrink-0", isActive ? "text-primary-foreground" : "text-muted-foreground")} />
                   <span>{item.label}</span>
                 </Link>
               );
@@ -202,35 +248,29 @@ export function AppSidebar() {
           </nav>
         </div>
 
-        {/* Profile Readiness Mini Card */}
-        <div className="rounded-2xl border border-border bg-card p-3.5 shadow-sm">
+        {/* Profile Completeness Mini Card */}
+        <div className="rounded-lg border border-border bg-card p-3 shadow-xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-foreground">Profile Completeness</span>
-            <span className="text-xs font-extrabold text-primary tabular-nums">{profileCompleteness}%</span>
+            <span className="text-xs font-semibold text-foreground">Profile Status</span>
+            <span className="text-xs font-bold text-primary tabular-nums">{profileCompleteness}%</span>
           </div>
-          <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+          <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-muted">
             <div
               className="h-full rounded-full bg-primary transition-all duration-500"
               style={{ width: `${profileCompleteness}%` }}
             />
           </div>
-          <p className="mt-2 text-[11px] text-muted-foreground">
-            {profile ? profile.name : "Guest Citizen"} {profile?.state ? `· ${profile.state}` : ""}
+          <p className="mt-1.5 text-[10px] text-muted-foreground truncate">
+            {profile ? `${profile.name} · ${profile.state}` : "Guest Citizen"}
           </p>
-          <Link
-            to="/profile"
-            className="mt-2 inline-flex w-full items-center justify-center rounded-lg bg-muted px-2.5 py-1 text-xs font-semibold text-foreground hover:bg-accent transition-colors"
-          >
-            {profile ? "Edit Profile" : "Complete Profile"}
-          </Link>
         </div>
       </div>
 
-      {/* Demo Persona Action Footer */}
-      <div className="border-t border-border bg-sidebar p-3 space-y-2">
-        <div className="flex items-center justify-between text-[11px] font-semibold text-muted-foreground px-1">
+      {/* Demo Switcher Footer */}
+      <div className="border-t border-border bg-sidebar p-3 space-y-1.5">
+        <div className="flex items-center justify-between text-[10px] font-semibold text-muted-foreground px-1">
           <span className="flex items-center gap-1">
-            <ShieldCheck className="size-3 text-teal" /> Hackathon Demo
+            <ShieldCheck className="size-3 text-primary" /> Active Session
           </span>
         </div>
         <div className="grid grid-cols-2 gap-1.5">
@@ -238,16 +278,16 @@ export function AppSidebar() {
             size="sm"
             variant="outline"
             onClick={loadDemoProfile}
-            className="h-8 text-xs font-semibold rounded-lg bg-card"
+            className="h-7 text-[11px] font-semibold rounded-md bg-card"
           >
-            <UserCheck className="size-3.5 mr-1 text-teal" />
-            Load Demo
+            <UserCheck className="size-3 mr-1 text-primary" />
+            Demo User
           </Button>
           <Button
             size="sm"
             variant="ghost"
             onClick={resetAll}
-            className="h-8 text-xs font-semibold rounded-lg text-muted-foreground hover:text-destructive"
+            className="h-7 text-[11px] font-semibold rounded-md text-muted-foreground hover:text-destructive"
           >
             <RotateCcw className="size-3 mr-1" />
             Reset

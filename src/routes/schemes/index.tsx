@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { Compass, Sparkles } from "lucide-react";
+import { Compass } from "lucide-react";
 
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useAppStore } from "@/state/app-store";
@@ -13,6 +13,7 @@ import { SchemeCard } from "@/components/schemes/SchemeCard";
 import { FilterBar } from "@/components/common/FilterBar";
 import { EmptyState } from "@/components/common/EmptyState";
 import { SchemeListSkeleton } from "@/components/common/LoadingSkeleton";
+import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/schemes/")({
   component: SchemesCatalogPage,
@@ -54,18 +55,22 @@ function SchemesCatalogPage() {
 
   return (
     <AppLayout>
-      <div className="space-y-6 animate-in fade-in duration-300">
+      <div className="space-y-6 animate-in fade-in duration-200">
         {/* Page Header */}
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-border pb-5">
-          <div>
+          <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <span className="text-xs font-bold uppercase tracking-widest text-teal">National & State Catalog</span>
+              <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                Official Directory
+              </span>
+              <span className="text-muted-foreground text-xs">·</span>
+              <span className="text-xs font-semibold text-primary">{sortedSchemes.length} Schemes Available</span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-black text-foreground tracking-tight mt-1">
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">
               Government Schemes Directory
             </h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Explore 22 verified central and state welfare, scholarship, and credit opportunities.
+            <p className="text-xs sm:text-sm text-muted-foreground">
+              Search and filter across central and state government benefits, scholarships, subsidies, and credit programs.
             </p>
           </div>
         </div>
@@ -85,22 +90,23 @@ function SchemesCatalogPage() {
         ) : sortedSchemes.length === 0 ? (
           <EmptyState
             icon={Compass}
-            title="No schemes found"
-            description="No government opportunities matched your search or active filter combination."
+            title="No matching schemes found"
+            description="No government opportunities matched your search keywords or active filter criteria."
             action={
-              <button
+              <Button
+                size="sm"
                 onClick={() => {
                   setFilters({});
                   setSort("match");
                 }}
-                className="rounded-xl bg-primary px-4 py-2 text-xs font-bold text-primary-foreground"
+                className="rounded-lg text-xs font-semibold"
               >
-                Reset Filters
-              </button>
+                Clear All Filters
+              </Button>
             }
           />
         ) : (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {sortedSchemes.map((scheme) => {
               const rec = recommendations.find((r) => r.schemeId === scheme.id);
               return (

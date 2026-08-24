@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { Sparkles, Compass, Filter, ArrowUpDown, ShieldCheck } from "lucide-react";
+import { createFileRoute } from "@tanstack/react-router";
+import { Sparkles, Compass, AlertCircle, Calendar } from "lucide-react";
 
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useAppStore } from "@/state/app-store";
@@ -13,7 +13,8 @@ import { SchemeCard } from "@/components/schemes/SchemeCard";
 import { FilterBar } from "@/components/common/FilterBar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EmptyState } from "@/components/common/EmptyState";
-import { SchemeListSkeleton, AnalyzingProfile } from "@/components/common/LoadingSkeleton";
+import { SchemeListSkeleton } from "@/components/common/LoadingSkeleton";
+import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/recommendations")({
   component: RecommendationsPage,
@@ -21,7 +22,7 @@ export const Route = createFileRoute("/recommendations")({
 
 function RecommendationsPage() {
   const { profile, documents, savedIds, toggleSaved } = useAppStore();
-  const [activeTab, setActiveTab] = useState<"all" | "missed">("all");
+  const [activeTab, setActiveTab] = useState<"all" | "high-priority" | "missed">("all");
   const [loading, setLoading] = useState(true);
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [missedOpportunities, setMissedOpportunities] = useState<Recommendation[]>([]);
@@ -51,15 +52,20 @@ function RecommendationsPage() {
     };
   }, [profile, documents, savedIds]);
 
-  const activeRecList = activeTab === "all" ? recommendations : missedOpportunities;
+  const activeRecList =
+    activeTab === "missed"
+      ? missedOpportunities
+      : activeTab === "high-priority"
+        ? recommendations.filter((r) => r.matchScore >= 80)
+        : recommendations;
+
   const scoreMap = new Map(activeRecList.map((r) => [r.schemeId, r.matchScore]));
 
-  // Filter schemes
   const rawSchemes = SCHEMES.filter((s) =>
     activeRecList.some((r) => r.schemeId === s.id)
   );
 
-  // Apply search/category/state filter
+  // Apply active search/filters
   const filteredSchemes = rawSchemes.filter((scheme) => {
     if (filters.query) {
       const q = filters.query.toLowerCase();
@@ -74,14 +80,6 @@ function RecommendationsPage() {
     if (filters.states?.length && !filters.states.includes(scheme.state)) return false;
     if (filters.governmentLevels?.length && !filters.governmentLevels.includes(scheme.governmentLevel))
       return false;
-    if (filters.educationLevels?.length) {
-      const levels = scheme.eligibility.education;
-      if (levels && !levels.some((l) => filters.educationLevels!.includes(l))) return false;
-    }
-    if (filters.occupations?.length) {
-      const occ = scheme.eligibility.occupations;
-      if (occ && !occ.some((o) => filters.occupations!.includes(o))) return false;
-    }
     return true;
   });
 
@@ -89,33 +87,40 @@ function RecommendationsPage() {
 
   return (
     <AppLayout>
-      <div className="space-y-6 animate-in fade-in duration-300">
+      <div className="space-y-6 animate-in fade-in duration-200">
         {/* Page Header */}
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-border pb-5">
-          <div>
+          <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <span className="text-xs font-bold uppercase tracking-widest text-teal">AI Decision Support</span>
+              <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                Personalized Discovery
+              </span>
+              <span className="text-muted-foreground text-xs">·</span>
+              <span className="text-xs font-semibold text-primary">
+                {recommendations.length} Schemes Matched
+              </span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-black text-foreground tracking-tight mt-1">
-              Recommended Opportunities
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">
+              Recommended Schemes for Your Profile
             </h1>
-            <p className="text-sm text-muted-foreground mt-1">
+            <p className="text-xs sm:text-sm text-muted-foreground">
               Ranked by profile match, eligibility rules, and document availability.
             </p>
           </div>
         </div>
 
-        {/* Tab Switcher: All Matches vs Missed Opportunities */}
-        <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as "all" | "missed")}>
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <TabsList className="rounded-xl h-11 p-1 bg-muted">
-              <TabsTrigger value="all" className="rounded-lg text-xs font-bold gap-2 px-4">
-                <Sparkles className="size-3.5 text-primary" />
-                <span>All Recommendations ({recommendations.length})</span>
+        {/* Tab Switcher: Best Matches vs High Priority vs Missed */}
+        <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as "all" | "high-priority" | "missed")}>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <TabsList className="h-10 p-1 bg-muted rounded-lg border border-border">
+              <TabsTrigger value="all" className="text-xs font-semibold rounded-md px-3">
+                All Matches ({recommendations.length})
               </TabsTrigger>
-              <TabsTrigger value="missed" className="rounded-lg text-xs font-bold gap-2 px-4">
-                <Compass className="size-3.5 text-teal" />
-                <span>Missed Opportunities ({missedOpportunities.length})</span>
+              <TabsTrigger value="high-priority" className="text-xs font-semibold rounded-md px-3">
+                High Match ({recommendations.filter((r) => r.matchScore >= 80).length})
+              </TabsTrigger>
+              <TabsTrigger value="missed" className="text-xs font-semibold rounded-md px-3">
+                You May Have Missed ({missedOpportunities.length})
               </TabsTrigger>
             </TabsList>
           </div>
@@ -131,29 +136,31 @@ function RecommendationsPage() {
             />
           </div>
 
-          {/* Tab Content */}
-          <div className="pt-6">
+          {/* Tab Content Grid */}
+          <div className="pt-4">
             {loading ? (
-              <AnalyzingProfile />
+              <SchemeListSkeleton count={6} />
             ) : sortedSchemes.length === 0 ? (
               <EmptyState
                 icon={Sparkles}
-                title="No schemes match current filters"
-                description="Try clearing some filter options or reset the search query to see all recommendations."
+                title="No schemes in this category"
+                description="Try switching tabs or resetting your active search filters to view more opportunities."
                 action={
-                  <button
+                  <Button
+                    size="sm"
                     onClick={() => {
                       setFilters({});
                       setSort("match");
+                      setActiveTab("all");
                     }}
-                    className="rounded-xl bg-primary px-4 py-2 text-xs font-bold text-primary-foreground"
+                    className="rounded-lg text-xs font-semibold"
                   >
-                    Clear All Filters
-                  </button>
+                    View All Recommendations
+                  </Button>
                 }
               />
             ) : (
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {sortedSchemes.map((scheme) => {
                   const rec = activeRecList.find((r) => r.schemeId === scheme.id);
                   return (
@@ -171,14 +178,6 @@ function RecommendationsPage() {
             )}
           </div>
         </Tabs>
-
-        {/* Disclaimer Card */}
-        <div className="rounded-2xl border border-border bg-card p-4 flex items-center gap-3 text-xs text-muted-foreground">
-          <ShieldCheck className="size-5 text-primary shrink-0" />
-          <p>
-            <strong>Note:</strong> Recommendation scores (0–100%) and confidence ratings are advisory algorithmic signals. They assist with discovery and preparation but do not substitute for official administrative determinations.
-          </p>
-        </div>
       </div>
     </AppLayout>
   );

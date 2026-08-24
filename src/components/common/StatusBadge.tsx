@@ -1,15 +1,16 @@
-import { AlertTriangle, Check, HelpCircle, X } from "lucide-react";
+import { AlertTriangle, Check, HelpCircle, X, Clock } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import type { DocumentStatus, EligibilityStatus, MatchFactor } from "@/lib/types";
 
-type Tone = "success" | "warning" | "danger" | "neutral";
+type Tone = "success" | "warning" | "danger" | "neutral" | "info";
 
 const TONE_CLASS: Record<Tone, string> = {
-  success: "bg-success-soft text-success border-success/25",
-  warning: "bg-warning-soft text-warning-foreground border-warning/35",
-  danger: "bg-destructive-soft text-destructive border-destructive/25",
+  success: "bg-success-soft text-success border-success/30",
+  warning: "bg-warning-soft text-warning-foreground border-warning/30",
+  danger: "bg-destructive-soft text-destructive border-destructive/30",
   neutral: "bg-muted text-muted-foreground border-border",
+  info: "bg-primary-soft text-primary border-primary/30",
 };
 
 const ICON: Record<Tone, typeof Check> = {
@@ -17,6 +18,7 @@ const ICON: Record<Tone, typeof Check> = {
   warning: AlertTriangle,
   danger: X,
   neutral: HelpCircle,
+  info: Clock,
 };
 
 export function StatusBadge({
@@ -27,19 +29,19 @@ export function StatusBadge({
 }: {
   tone: Tone;
   children: React.ReactNode;
-  className?: string;
-  glyph?: boolean;
+  className?: string | undefined;
+  glyph?: boolean | undefined;
 }) {
   const Icon = ICON[tone];
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold",
+        "inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-xs font-semibold",
         TONE_CLASS[tone],
         className,
       )}
     >
-      {glyph === false ? null : <Icon className="size-3.5 shrink-0" aria-hidden="true" />}
+      {glyph === false ? null : <Icon className="size-3 shrink-0" aria-hidden="true" />}
       {children}
     </span>
   );
@@ -51,10 +53,10 @@ export function eligibilityTone(status: EligibilityStatus): Tone {
 
 export function eligibilityLabel(status: EligibilityStatus): string {
   return status === "likely-eligible"
-    ? "Likely eligible"
+    ? "Potentially Eligible"
     : status === "needs-verification"
-      ? "Needs verification"
-      : "Likely not eligible";
+      ? "Verification Required"
+      : "Criteria Not Met";
 }
 
 export function EligibilityBadge({ status }: { status: EligibilityStatus }) {
@@ -66,7 +68,7 @@ export function documentTone(status: DocumentStatus): Tone {
 }
 
 export function documentLabel(status: DocumentStatus): string {
-  return status === "available" ? "Available" : status === "needs-verification" ? "Needs verification" : "Missing";
+  return status === "available" ? "Verified & Ready" : status === "needs-verification" ? "Needs Verification" : "Missing Document";
 }
 
 export function DocumentStatusBadge({ status }: { status: DocumentStatus }) {
